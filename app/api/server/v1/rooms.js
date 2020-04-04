@@ -1,6 +1,7 @@
 import { Meteor } from 'meteor/meteor';
 import Busboy from 'busboy';
 
+import { getFromMimeType } from '../../../upload-transform/server';
 import { FileUpload } from '../../../file-upload';
 import { Rooms, Messages } from '../../../models';
 import { API } from '../api';
@@ -59,32 +60,45 @@ API.v1.addRoute('rooms.get', { authRequired: true }, {
 	},
 });
 
-const getFiles = Meteor.wrapAsync(({ request }, callback) => {
+function getFiles(request, callback) {
+	let errorStatus = null;
+	let promiseQueue = Promise.resolve({ files: [], fields: {} });
 	const busboy = new Busboy({ headers: request.headers });
-	const files = [];
-
-	const fields = {};
-
 
 	busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-		if (fieldname !== 'file') {
-			return callback(new Meteor.Error('invalid-field'));
-		}
-
-		const fileDate = [];
-		file.on('data', (data) => fileDate.push(data));
-
-		file.on('end', () => {
-			files.push({ fieldname, file, filename, encoding, mimetype, fileBuffer: Buffer.concat(fileDate) });
+		promiseQueue = promiseQueue.then((data) => {
+			if (errorStatus) {
+				file.resume();
+				return data;
+			}
+			if (fieldname !== 'file') {
+				file.resume();
+				throw new Meteor.Error('invalid-field');
+			}
+			return getFromMimeType(mimetype).processFile(file).then((streamOrBuffer) => {
+				data.files.push({ fieldname, filename, encoding, mimetype, fileBuffer: streamOrBuffer });
+				return data;
+			});
+		}).catch((error) => {
+			errorStatus = error;
 		});
 	});
 
-	busboy.on('field', (fieldname, value) => { fields[fieldname] = value; });
+	busboy.on('field', (fieldname, value) => {
+		promiseQueue = promiseQueue.then((data) => {
+			data.fields[fieldname] = value;
+			return data;
+		});
+	});
 
-	busboy.on('finish', Meteor.bindEnvironment(() => callback(null, { files, fields })));
+	busboy.on('finish', () => {
+		promiseQueue.then((data) => {
+			callback(errorStatus, data);
+		});
+	});
 
 	request.pipe(busboy);
-});
+}
 
 API.v1.addRoute('rooms.upload/:rid', { authRequired: true }, {
 	post() {
@@ -94,10 +108,7 @@ API.v1.addRoute('rooms.upload/:rid', { authRequired: true }, {
 			return API.v1.unauthorized();
 		}
 
-
-		const { files, fields } = getFiles({
-			request: this.request,
-		});
+		const { files, fields } = Meteor.wrapAsync(getFiles)(this.request);
 
 		if (files.length === 0) {
 			return API.v1.failure('File required');
