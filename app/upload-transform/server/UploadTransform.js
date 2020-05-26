@@ -1,4 +1,4 @@
-import { GenericTransform } from './GenericTransform';
+import { NoTransform } from './NoTransform';
 import { VideoTransform } from './VideoTransform';
 
 /**
@@ -11,5 +11,5 @@ export function getFromMimeType(mimeType) {
 		return new VideoTransform();
 	}
 
-	return new GenericTransform();
+	return new NoTransform();
 }

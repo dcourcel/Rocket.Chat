@@ -1,6 +1,6 @@
 import { UploadTransformObj } from './UploadTransformObj';
 
-export class GenericTransform extends UploadTransformObj {
+export class NoTransform extends UploadTransformObj {
 	async processFile(file) {
 		return new Promise((resolve) => {
 			const fileData = [];
