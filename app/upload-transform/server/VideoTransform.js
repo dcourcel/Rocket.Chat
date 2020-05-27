@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 
 import handbrake from 'handbrake-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -57,7 +58,7 @@ export class VideoTransform extends UploadTransformObj {
 	}
 
 	async processFile(file) {
-		const tempFilename = `/tmp/${ uuidv4() }`;
+		const tempFilename = `${ os.tmpdir() }/${ uuidv4() }`;
 		const tempFilenameConverted = `${ tempFilename }_converted.mp4`;
 		return new Promise((resolve, reject) => {
 			const stream = fs.createWriteStream(tempFilename);
