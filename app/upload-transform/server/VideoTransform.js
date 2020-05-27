@@ -8,6 +8,14 @@ import { settings } from '../../settings';
 import { UploadTransformObj } from './UploadTransformObj';
 
 export class VideoTransform extends UploadTransformObj {
+    modifyFilename(filename) {
+		// Determine file output name. It should finish with a .mp4 extension.
+		const fileExtensionIndex = filename.lastIndexOf('.');
+		return fileExtensionIndex === -1 || fileExtensionIndex === 0 ?
+			filename = `${ filename }.mp4` :
+			filename = `${ filename.substr(0, fileExtensionIndex) }.mp4`;
+	}
+
     generateHandbrakeOptions(inputFilename) {
 		const options = {
 			input: inputFilename,
@@ -57,9 +65,10 @@ export class VideoTransform extends UploadTransformObj {
 		return options;
 	}
 
-	async processFile(file) {
+	async processFile(filename, file) {
 		const tempFilename = `${ os.tmpdir() }/${ uuidv4() }`;
 		const tempFilenameConverted = `${ tempFilename }_converted.mp4`;
+		const modifiedFilename = this.modifyFilename(filename);
 		return new Promise((resolve, reject) => {
 			const stream = fs.createWriteStream(tempFilename);
 			file.pipe(stream);
@@ -73,7 +82,7 @@ export class VideoTransform extends UploadTransformObj {
 						if (err) {
 							reject(err);
 						} else {
-							resolve(data);
+							resolve({ filename: modifiedFilename, file: data });
 						}
 					});
 				})
