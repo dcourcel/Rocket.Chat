@@ -1,14 +1,8 @@
-FROM rocketchat/base:12.14.0
+FROM dcourcel/personnal:rocketchatBase_12.16.1-dev1
 
 ADD . /app
 
 LABEL maintainer="buildmaster@rocket.chat"
-
-# The version in debian stretch is too old and the video conversion is not made properly
-# with video coming from mobile devices due to a rotation flag in the video file.
-RUN echo "deb http://ftp.de.debian.org/debian buster main" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y handbrake-cli
 
 RUN set -x \
  && cd /app/bundle/programs/server \
