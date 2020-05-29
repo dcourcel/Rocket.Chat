@@ -75,7 +75,7 @@ function getFiles(request, callback) {
 				file.resume();
 				throw new Meteor.Error('invalid-field');
 			}
-			return getFromMimeType(mimetype).processFile(filename, file).then(({filename, file}) => {
+			return getFromMimeType(mimetype).processFile(filename, file).then(({ filename, file }) => {
 				data.files.push({ fieldname, filename, encoding, mimetype, fileBuffer: file });
 				return data;
 			});

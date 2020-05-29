@@ -67,111 +67,111 @@ settings.addGroup('FileUpload', function() {
 
 	this.section('FileUpload Conversion', function() {
 		this.add('FileUpload_Video_Conversion_Enabled', true, {
-			type: 'boolean'
+			type: 'boolean',
 		});
 
 		const enableVideoQuery = {
 			_id: 'FileUpload_Video_Conversion_Enabled',
-			value: true
+			value: true,
 		};
 
 		this.add('FileUpload_Video_Encoder', 'x264', {
 			type: 'select',
 			values: [{
 				key: 'x264',
-				i18nLabel: 'x264'
+				i18nLabel: 'x264',
 			}],
-			enableQuery: enableVideoQuery
+			enableQuery: enableVideoQuery,
 		});
 
 		this.add('FileUpload_Video_Configure_Image_Size', true, {
 			type: 'boolean',
-			enableQuery: enableVideoQuery
+			enableQuery: enableVideoQuery,
 		});
 		const videoSizeQuery = [enableVideoQuery, {
 			_id: 'FileUpload_Video_Configure_Image_Size',
 			value: true,
 		}];
 		this.add('FileUpload_Video_Max_Width', 1280, {
-		    type: 'int',
-			enableQuery: videoSizeQuery
+			type: 'int',
+			enableQuery: videoSizeQuery,
 		});
 		this.add('FileUpload_Video_Max_Height', 1280, {
-		    type: 'int',
-			enableQuery: videoSizeQuery
+			type: 'int',
+			enableQuery: videoSizeQuery,
 		});
 
 		this.add('FileUpload_Video_Framerate_Control', 'pfr', {
 			type: 'select',
 			values: [{
 				key: 'vfr',
-				i18nLabel: 'vfr'
+				i18nLabel: 'vfr',
 			},
 			{
 				key: 'cfr',
-				i18nLabel: 'cfr'
+				i18nLabel: 'cfr',
 			},
 			{
 				key: 'pfr',
-				i18nLabel: 'pfr'
+				i18nLabel: 'pfr',
 			}],
 			i18nDescription: 'FileUpload_Video_Framerate_ControlDescription',
-			enableQuery: enableVideoQuery
+			enableQuery: enableVideoQuery,
 		});
 		const videoFramerateQuery = [enableVideoQuery, {
 			_id: 'FileUpload_Video_Framerate_Control',
-			value: { $ne: 'vfr' }
+			value: { $ne: 'vfr' },
 		}];
 		this.add('FileUpload_Video_Configure_Framerate', true, {
 			type: 'boolean',
-			enableQuery: videoFramerateQuery
+			enableQuery: videoFramerateQuery,
 		});
 		this.add('FileUpload_Video_Framerate', 30, {
 			type: 'int',
 			enableQuery: videoFramerateQuery.concat({
 				_id: 'FileUpload_Video_Configure_Framerate',
-				value: true
-			})
+				value: true,
+			}),
 		});
 
 		this.add('FileUpload_Video_Quality_Type', 'Bitrate', {
 			type: 'select',
 			values: [{
 				key: 'ConstantQuality',
-				i18nLabel: 'ConstantQuality'
+				i18nLabel: 'ConstantQuality',
 			},
 			{
 				key: 'Bitrate',
-				i18nLabel: 'Bitrate'
+				i18nLabel: 'Bitrate',
 			}],
-			enableQuery: enableVideoQuery
+			enableQuery: enableVideoQuery,
 		});
 		const videoConstantQualityQuery = [enableVideoQuery, {
 			_id: 'FileUpload_Video_Quality_Type',
-			value: 'ConstantQuality'
+			value: 'ConstantQuality',
 		}];
 		const videoBitrateQualityQuery = [enableVideoQuery, {
 			_id: 'FileUpload_Video_Quality_Type',
-			value: 'Bitrate'
+			value: 'Bitrate',
 		}];
 		this.add('FileUpload_Video_Quality', 22, {
 			type: 'int',
-			enableQuery: videoConstantQualityQuery
+			enableQuery: videoConstantQualityQuery,
 		});
 		this.add('FileUpload_Video_Bitrate', 2500, {
-		    type: 'int',
-			enableQuery: videoBitrateQualityQuery
+			type: 'int',
+			enableQuery: videoBitrateQualityQuery,
 		});
 		this.add('FileUpload_Video_Two_Pass', true, {
-		    type: 'boolean',
-			enableQuery: videoBitrateQualityQuery
+			type: 'boolean',
+			enableQuery: videoBitrateQualityQuery,
 		});
 		this.add('FileUpload_Video_Turbo', true, {
-		    type: 'boolean',
+			type: 'boolean',
 			enableQuery: videoBitrateQualityQuery.concat({
 				_id: 'FileUpload_Video_Two_Pass',
-				value: true
-			})
+				value: true,
+			}),
 		});
 	});
 
