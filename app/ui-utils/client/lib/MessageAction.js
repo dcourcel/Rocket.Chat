@@ -59,7 +59,7 @@ export const MessageAction = new class {
 		}
 
 		if (config.condition) {
-			config.condition = mem(config.condition, { maxAge: 1000 });
+			config.condition = mem(config.condition, { maxAge: 1000, cacheKey: JSON.stringify });
 		}
 
 		return Tracker.nonreactive(() => {
@@ -99,7 +99,7 @@ export const MessageAction = new class {
 	})
 
 	_getButtonsByGroup = mem(function(group) {
-		return this._getButtons().filter((button) => button.group === group);
+		return this._getButtons().filter((button) => (Array.isArray(button.group) ? button.group.includes(group) : button.group === group));
 	})
 
 	getButtons(message, context, group) {
@@ -149,15 +149,9 @@ Meteor.startup(async function() {
 	const { chatMessages } = await import('../../../ui');
 
 	const getChatMessagesFrom = (msg) => {
-		const { rid, tmid } = msg;
+		const { rid = Session.get('openedRoom'), tmid = msg._id } = msg;
 
-		if (rid) {
-			if (tmid) {
-				return chatMessages[`${ rid }-${ tmid }`];
-			}
-			return chatMessages[rid];
-		}
-		return chatMessages[Session.get('openedRoom')];
+		return chatMessages[`${ rid }-${ tmid }`] || chatMessages[rid];
 	};
 
 	MessageAction.addButton({
@@ -176,12 +170,12 @@ Meteor.startup(async function() {
 			if (subscription == null) {
 				return false;
 			}
-			if (room.t === 'd') {
+			if (room.t === 'd' || room.t === 'l') {
 				return false;
 			}
 			return true;
 		},
-		order: 2,
+		order: 0,
 		group: 'menu',
 	});
 
@@ -192,7 +186,7 @@ Meteor.startup(async function() {
 		context: ['message', 'message-mobile', 'threads'],
 		action() {
 			const { msg: message } = messageArgs(this);
-			const { input } = chatMessages[message.rid];
+			const { input } = getChatMessagesFrom(message);
 			const $input = $(input);
 
 			let messages = $input.data('reply') || [];
@@ -262,7 +256,8 @@ Meteor.startup(async function() {
 		icon: 'edit',
 		label: 'Edit',
 		context: ['message', 'message-mobile', 'threads'],
-		action() {
+		action(event) {
+			console.log(event);
 			const { msg } = messageArgs(this);
 			getChatMessagesFrom(msg).edit(document.getElementById(msg.tmid ? `thread-${ msg._id }` : msg._id));
 		},

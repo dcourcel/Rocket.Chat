@@ -7,7 +7,7 @@ export const livechatManagerRoutes = FlowRouter.group({
 	name: 'livechat-manager',
 });
 
-const load = () => import('./views/admin');
+export const load = () => import('./views/admin');
 
 AccountBox.addRoute({
 	name: 'livechat-dashboard',
@@ -45,7 +45,7 @@ AccountBox.addRoute({
 	name: 'livechat-managers',
 	path: '/managers',
 	sideNav: 'livechatFlex',
-	i18nPageTitle: 'Livechat_managers',
+	i18nPageTitle: 'Livechat_Managers',
 	pageTemplate: 'livechatManagers',
 }, livechatManagerRoutes, load);
 
@@ -124,11 +124,11 @@ AccountBox.addRoute({
 }, livechatManagerRoutes, load);
 
 AccountBox.addRoute({
-	name: 'livechat-officeHours',
-	path: '/officeHours',
+	name: 'livechat-business-hours',
+	path: '/businessHours',
 	sideNav: 'livechatFlex',
-	i18nPageTitle: 'Office_Hours',
-	pageTemplate: 'livechatOfficeHours',
+	i18nPageTitle: 'Business_Hours',
+	pageTemplate: 'livechatMainBusinessHours',
 }, livechatManagerRoutes, load);
 
 AccountBox.addRoute({

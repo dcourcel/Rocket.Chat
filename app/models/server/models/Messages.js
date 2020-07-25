@@ -9,7 +9,7 @@ export class Messages extends Base {
 	constructor() {
 		super('message');
 
-		this.tryEnsureIndex({ rid: 1, ts: 1 });
+		this.tryEnsureIndex({ rid: 1, ts: 1, _updatedAt: 1 });
 		this.tryEnsureIndex({ ts: 1 });
 		this.tryEnsureIndex({ 'u._id': 1 });
 		this.tryEnsureIndex({ editedAt: 1 }, { sparse: true });
@@ -108,8 +108,8 @@ export class Messages extends Base {
 		return this.createWithTypeRoomIdMessageAndUser('r', roomId, roomName, user, extraData);
 	}
 
-	addTranslations(messageId, translations) {
-		const updateObj = {};
+	addTranslations(messageId, translations, providerName) {
+		const updateObj = { translationProvider: providerName };
 		Object.keys(translations).forEach((key) => {
 			const translation = translations[key];
 			updateObj[`translations.${ key }`] = translation;
@@ -172,7 +172,7 @@ export class Messages extends Base {
 		return this.find(query, { fields: { 'file._id': 1 }, ...options });
 	}
 
-	findFilesByRoomIdPinnedTimestampAndUsers(rid, excludePinned, ignoreDiscussion = true, ts, users = [], options = {}) {
+	findFilesByRoomIdPinnedTimestampAndUsers(rid, excludePinned, ignoreDiscussion = true, ts, users = [], ignoreThreads = true, options = {}) {
 		const query = {
 			rid,
 			ts,
@@ -181,6 +181,11 @@ export class Messages extends Base {
 
 		if (excludePinned) {
 			query.pinned = { $ne: true };
+		}
+
+		if (ignoreThreads) {
+			query.tmid = { $exists: 0 };
+			query.tcount = { $exists: 0 };
 		}
 
 		if (ignoreDiscussion) {
@@ -251,7 +256,6 @@ export class Messages extends Base {
 			_hidden: {
 				$ne: true,
 			},
-
 			rid: roomId,
 		};
 
@@ -502,6 +506,10 @@ export class Messages extends Base {
 			rid,
 			_hidden: { $ne: true },
 			t: { $exists: false },
+			$or: [
+				{ tmid: { $exists: false } },
+				{ tshow: true },
+			],
 		};
 
 		if (messageId) {
@@ -804,6 +812,29 @@ export class Messages extends Base {
 		return record;
 	}
 
+	createTranscriptHistoryWithRoomIdMessageAndUser(roomId, message, user, extraData) {
+		const type = 'livechat_transcript_history';
+		const record = {
+			t: type,
+			rid: roomId,
+			ts: new Date(),
+			msg: message,
+			u: {
+				_id: user._id,
+				username: user.username,
+			},
+			groupable: false,
+		};
+
+		if (settings.get('Message_Read_Receipt_Enabled')) {
+			record.unread = true;
+		}
+		Object.assign(record, extraData);
+
+		record._id = this.insertOrUpsert(record);
+		return record;
+	}
+
 	createUserJoinWithRoomIdAndUser(roomId, user, extraData) {
 		const message = user.username;
 		return this.createWithTypeRoomIdMessageAndUser('uj', roomId, message, user, extraData);
@@ -896,7 +927,11 @@ export class Messages extends Base {
 		return this.remove(query);
 	}
 
-	removeByIdPinnedTimestampLimitAndUsers(rid, pinned, ignoreDiscussion = true, ts, limit, users = []) {
+	removeByRoomIds(rids) {
+		return this.remove({ rid: { $in: rids } });
+	}
+
+	removeByIdPinnedTimestampLimitAndUsers(rid, pinned, ignoreDiscussion = true, ts, limit, users = [], ignoreThreads = true) {
 		const query = {
 			rid,
 			ts,
@@ -910,12 +945,22 @@ export class Messages extends Base {
 			query.drid = { $exists: 0 };
 		}
 
+		if (ignoreThreads) {
+			query.tmid = { $exists: 0 };
+			query.tcount = { $exists: 0 };
+		}
+
 		if (users.length) {
 			query['u.username'] = { $in: users };
 		}
 
 		if (!limit) {
-			return this.remove(query);
+			const count = this.remove(query);
+
+			// decrease message count
+			Rooms.decreaseMessageCountById(rid, count);
+
+			return count;
 		}
 
 		const messagesToDelete = this.find(query, {
@@ -925,11 +970,16 @@ export class Messages extends Base {
 			limit,
 		}).map(({ _id }) => _id);
 
-		return this.remove({
+		const count = this.remove({
 			_id: {
 				$in: messagesToDelete,
 			},
 		});
+
+		// decrease message count
+		Rooms.decreaseMessageCountById(rid, count);
+
+		return count;
 	}
 
 	removeByUserId(userId) {

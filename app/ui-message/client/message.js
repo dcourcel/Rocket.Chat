@@ -3,72 +3,25 @@ import s from 'underscore.string';
 import { Meteor } from 'meteor/meteor';
 import { Tracker } from 'meteor/tracker';
 import { Template } from 'meteor/templating';
+import { Session } from 'meteor/session';
 import { TAPi18n } from 'meteor/rocketchat:tap-i18n';
 
 import { timeAgo, formatDateAndTime } from '../../lib/client/lib/formatDate';
 import { DateFormat } from '../../lib/client';
-import { renderMessageBody, MessageTypes, MessageAction, call, normalizeThreadMessage } from '../../ui-utils/client';
+import { normalizeThreadTitle } from '../../threads/client/lib/normalizeThreadTitle';
+import { renderMessageBody, MessageTypes, MessageAction, call } from '../../ui-utils/client';
 import { RoomRoles, UserRoles, Roles, Messages } from '../../models/client';
 import { callbacks } from '../../callbacks/client';
 import { Markdown } from '../../markdown/client';
-import { t, roomTypes, getURL } from '../../utils';
+import { t, roomTypes } from '../../utils';
 import { upsertMessage } from '../../ui-utils/client/lib/RoomHistoryManager';
 import './message.html';
-import './messageThread.html';
+import './messageThread';
+import { AutoTranslate } from '../../autotranslate/client';
 
-async function renderPdfToCanvas(canvasId, pdfLink) {
-	const isSafari = /constructor/i.test(window.HTMLElement)
-		|| ((p) => p.toString() === '[object SafariRemoteNotification]')(!window.safari
-			|| (typeof window.safari !== 'undefined' && window.safari.pushNotification));
-
-	if (isSafari) {
-		const [, version] = /Version\/([0-9]+)/.exec(navigator.userAgent) || [null, 0];
-		if (version <= 12) {
-			return;
-		}
-	}
-
-	if (!pdfLink || !/\.pdf$/i.test(pdfLink)) {
-		return;
-	}
-	pdfLink = getURL(pdfLink);
-
-	const canvas = document.getElementById(canvasId);
-	if (!canvas) {
-		return;
-	}
-
-	const pdfjsLib = await import('pdfjs-dist');
-	pdfjsLib.GlobalWorkerOptions.workerSrc = `${ Meteor.absoluteUrl() }pdf.worker.min.js`;
-
-	const loader = document.getElementById(`js-loading-${ canvasId }`);
-
-	if (loader) {
-		loader.style.display = 'block';
-	}
-
-	const pdf = await pdfjsLib.getDocument(pdfLink);
-	const page = await pdf.getPage(1);
-	const scale = 0.5;
-	const viewport = page.getViewport(scale);
-	const context = canvas.getContext('2d');
-	canvas.height = viewport.height;
-	canvas.width = viewport.width;
-	await page.render({
-		canvasContext: context,
-		viewport,
-	}).promise;
-
-	if (loader) {
-		loader.style.display = 'none';
-	}
-
-	canvas.style.maxWidth = '-webkit-fill-available';
-	canvas.style.maxWidth = '-moz-available';
-	canvas.style.display = 'block';
-}
 
 const renderBody = (msg, settings) => {
+	const searchedText = msg.searchedText ? msg.searchedText : '';
 	const isSystemMessage = MessageTypes.isSystemMessage(msg);
 	const messageType = MessageTypes.getType(msg) || {};
 
@@ -90,20 +43,62 @@ const renderBody = (msg, settings) => {
 	if (isSystemMessage) {
 		msg.html = Markdown.parse(msg.html);
 	}
+
+	if (searchedText) {
+		msg = msg.replace(new RegExp(searchedText, 'gi'), (str) => `<mark>${ str }</mark>`);
+	}
+
 	return msg;
 };
 
+const findParentMessage = (() => {
+	const waiting = [];
+	const uid = Tracker.nonreactive(() => Meteor.userId());
+	const getMessages = _.debounce(async function() {
+		const _tmp = [...waiting];
+		waiting.length = 0;
+		(await call('getMessages', _tmp)).map((msg) => Messages.findOne({ _id: msg._id }) || upsertMessage({ msg: { ...msg, _hidden: true }, uid }));
+	}, 500);
+
+
+	return (tmid) => {
+		if (waiting.indexOf(tmid) > -1) {
+			return;
+		}
+		const message = Messages.findOne({ _id: tmid });
+		if (!message) {
+			waiting.push(tmid);
+			return getMessages();
+		}
+		return Messages.update(
+			{ tmid, repliesCount: { $exists: 0 } },
+			{
+				$set: {
+					following: message.replies && message.replies.indexOf(uid) > -1,
+					threadMsg: normalizeThreadTitle(message),
+					repliesCount: message.tcount,
+				},
+			},
+			{ multi: true },
+		);
+	};
+})();
+
 Template.message.helpers({
+	following() {
+		const { msg, u } = this;
+		return msg.replies && msg.replies.indexOf(u._id) > -1;
+	},
 	body() {
 		const { msg, settings } = this;
 		return Tracker.nonreactive(() => renderBody(msg, settings));
 	},
-	and(a, b) {
-		return a && b;
-	},
 	i18nReplyCounter() {
 		const { msg } = this;
-		return `<span class='reply-counter'>${ msg.tcount }</span>`;
+		if (msg.tcount === 1) {
+			return 'reply_counter';
+		}
+		return 'reply_counter_plural';
 	},
 	i18nDiscussionCounter() {
 		const { msg } = this;
@@ -177,6 +172,10 @@ Template.message.helpers({
 			return msg.avatar.replace(/^@/, '');
 		}
 	},
+	getStatus() {
+		const { msg } = this;
+		return Session.get(`user_${ msg.u.username }_status_text`);
+	},
 	getName() {
 		const { msg, settings } = this;
 		if (msg.alias) {
@@ -228,7 +227,7 @@ Template.message.helpers({
 	},
 	threadMessage() {
 		const { msg } = this;
-		return normalizeThreadMessage(msg);
+		return normalizeThreadTitle(msg);
 	},
 	bodyClass() {
 		const { msg } = this;
@@ -243,12 +242,36 @@ Template.message.helpers({
 			return 'system';
 		}
 	},
+	unread() {
+		const { msg, subscription } = this;
+		if (!subscription?.tunread?.includes(msg._id)) {
+			return false;
+		}
+
+		const badgeClass = (() => {
+			if (subscription.tunreadUser?.includes(msg._id)) {
+				return 'badge--user-mentions';
+			}
+			if (subscription.tunreadGroup?.includes(msg._id)) {
+				return 'badge--group-mentions';
+			}
+		})();
+
+		return {
+			class: badgeClass,
+		};
+	},
 	showTranslated() {
 		const { msg, subscription, settings, u } = this;
 		if (settings.AutoTranslate_Enabled && msg.u && msg.u._id !== u._id && !MessageTypes.isSystemMessage(msg)) {
 			const autoTranslate = subscription && subscription.autoTranslate;
 			return msg.autoTranslateFetching || (!!autoTranslate !== !!msg.autoTranslateShowInverse && msg.translations && msg.translations[settings.translateLanguage]);
 		}
+	},
+	translationProvider() {
+		const instance = Template.instance();
+		const { translationProvider } = instance.data.msg;
+		return translationProvider && AutoTranslate.providersMetadata[translationProvider].displayName;
 	},
 	edited() {
 		const { msg } = this;
@@ -364,6 +387,9 @@ Template.message.helpers({
 	injectSettings(data, settings) {
 		data.settings = settings;
 	},
+	className() {
+		return this.msg.className;
+	},
 	channelName() {
 		const { subscription } = this;
 		// const subscription = Subscriptions.findOne({ rid: this.rid });
@@ -409,7 +435,11 @@ Template.message.helpers({
 	},
 	isThreadReply() {
 		const { groupable, msg: { tmid, t, groupable: _groupable }, settings: { showreply } } = this;
-		return !(groupable === false || _groupable === false) && !!(tmid && showreply && (!t || t === 'e2e'));
+		return !(groupable === true || _groupable === true) && !!(tmid && showreply && (!t || t === 'e2e'));
+	},
+	shouldHideBody() {
+		const { msg: { tmid }, settings: { showreply } } = this;
+		return showreply && tmid;
 	},
 	collapsed() {
 		const { msg: { tmid, collapsed }, settings: { showreply }, shouldCollapseReplies } = this;
@@ -426,45 +456,15 @@ Template.message.helpers({
 		const { msg: { threadMsg } } = this;
 		return threadMsg;
 	},
+	showStar() {
+		const { msg } = this;
+		return msg.starred && !(msg.actionContext === 'starred' || this.context === 'starred');
+	},
 });
 
 
-const findParentMessage = (() => {
-	const waiting = [];
-	const uid = Tracker.nonreactive(() => Meteor.userId());
-	const getMessages = _.debounce(async function() {
-		const _tmp = [...waiting];
-		waiting.length = 0;
-		(await call('getMessages', _tmp)).map((msg) => Messages.findOne({ _id: msg._id }) || upsertMessage({ msg: { ...msg, _hidden: true }, uid }));
-	}, 500);
-
-
-	return (tmid) => {
-		if (waiting.indexOf(tmid) > -1) {
-			return;
-		}
-		const message = Messages.findOne({ _id: tmid });
-		if (!message) {
-			waiting.push(tmid);
-			return getMessages();
-		}
-		return Messages.update(
-			{ tmid, repliesCount: { $exists: 0 } },
-			{
-				$set: {
-					following: message.replies && message.replies.indexOf(uid) > -1,
-					threadMsg: normalizeThreadMessage(message),
-					repliesCount: message.tcount,
-				},
-			},
-			{ multi: true },
-		);
-	};
-})();
-
 Template.message.onCreated(function() {
 	const { msg, shouldCollapseReplies } = Template.currentData();
-
 	if (shouldCollapseReplies && msg.tmid && !msg.threadMsg) {
 		findParentMessage(msg.tmid);
 	}
@@ -524,7 +524,7 @@ const isSequential = (currentNode, previousNode, forceDate, period, showDateSepa
 		return false;
 	}
 
-	if (shouldCollapseReplies && currentDataset.tmid) {
+	if (!shouldCollapseReplies && currentDataset.tmid) {
 		return previousDataset.id === currentDataset.tmid || previousDataset.tmid === currentDataset.tmid;
 	}
 
@@ -551,12 +551,9 @@ const isSequential = (currentNode, previousNode, forceDate, period, showDateSepa
 	return false;
 };
 
-const processSequentials = ({ index, currentNode, settings, forceDate, showDateSeparator = true, groupable, msg, shouldCollapseReplies }) => {
+const processSequentials = ({ index, currentNode, settings, forceDate, showDateSeparator = true, groupable, shouldCollapseReplies }) => {
 	if (!showDateSeparator && !groupable) {
 		return;
-	}
-	if (msg.file && msg.file.type === 'application/pdf') {
-		Meteor.defer(() => { renderPdfToCanvas(msg.file._id, msg.attachments[0].title_link); });
 	}
 	// const currentDataset = currentNode.dataset;
 	const previousNode = (index === undefined || index > 0) && getPreviousSentMessage(currentNode);

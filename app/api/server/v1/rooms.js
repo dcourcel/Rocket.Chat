@@ -5,7 +5,7 @@ import { getFromMimeType } from '../../../upload-transform/server';
 import { FileUpload } from '../../../file-upload';
 import { Rooms, Messages } from '../../../models';
 import { API } from '../api';
-import { findAdminRooms, findChannelAndPrivateAutocomplete } from '../lib/rooms';
+import { findAdminRooms, findChannelAndPrivateAutocomplete, findAdminRoom } from '../lib/rooms';
 
 function findRoomByIdOrName({ params, checkedArchived = true }) {
 	if ((!params.roomId || !params.roomId.trim()) && (!params.roomName || !params.roomName.trim())) {
@@ -210,8 +210,9 @@ API.v1.addRoute('rooms.cleanHistory', { authRequired: true }, {
 			oldest,
 			inclusive,
 			limit: this.bodyParams.limit,
-			excludePinned: this.bodyParams.excludePinned,
-			filesOnly: this.bodyParams.filesOnly,
+			excludePinned: [true, 'true', 1, '1'].includes(this.bodyParams.excludePinned),
+			filesOnly: [true, 'true', 1, '1'].includes(this.bodyParams.filesOnly),
+			ignoreThreads: [true, 'true', 1, '1'].includes(this.bodyParams.ignoreThreads),
 			fromUsers: this.bodyParams.users,
 		}));
 
@@ -311,6 +312,22 @@ API.v1.addRoute('rooms.adminRooms', { authRequired: true }, {
 	},
 });
 
+API.v1.addRoute('rooms.adminRooms.getRoom', { authRequired: true }, {
+	get() {
+		const { rid } = this.requestParams();
+		const room = Promise.await(findAdminRoom({
+			uid: this.userId,
+			rid,
+		}));
+
+		if (!room) {
+			return API.v1.failure('not-allowed', 'Not Allowed');
+		}
+		return API.v1.success(room);
+	},
+});
+
+
 API.v1.addRoute('rooms.autocomplete.channelAndPrivate', { authRequired: true }, {
 	get() {
 		const { selector } = this.queryParams;
@@ -322,5 +339,30 @@ API.v1.addRoute('rooms.autocomplete.channelAndPrivate', { authRequired: true }, 
 			uid: this.userId,
 			selector: JSON.parse(selector),
 		})));
+	},
+});
+
+API.v1.addRoute('rooms.saveRoomSettings', { authRequired: true }, {
+	post() {
+		const { rid, ...params } = this.bodyParams;
+
+		const result = Meteor.runAsUser(this.userId, () => Meteor.call('saveRoomSettings', rid, params));
+
+		return API.v1.success({ rid: result.rid });
+	},
+});
+
+API.v1.addRoute('rooms.changeArchivationState', { authRequired: true }, {
+	post() {
+		const { rid, action } = this.bodyParams;
+
+		let result;
+		if (action === 'archive') {
+			result = Meteor.runAsUser(this.userId, () => Meteor.call('archiveRoom', rid));
+		} else {
+			result = Meteor.runAsUser(this.userId, () => Meteor.call('unarchiveRoom', rid));
+		}
+
+		return API.v1.success({ result });
 	},
 });

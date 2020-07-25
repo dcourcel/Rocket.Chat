@@ -11,9 +11,12 @@ import { renderMessageBody } from './renderMessageBody';
 import { getConfig } from '../config';
 import { ChatMessage, ChatSubscription, ChatRoom } from '../../../models';
 import { call } from './callMethod';
+import { filterMarkdown } from '../../../markdown/lib/markdown';
 
-export const normalizeThreadMessage = (message) => {
+export const normalizeThreadMessage = ({ ...message }) => {
 	if (message.msg) {
+		message.msg = filterMarkdown(message.msg);
+		delete message.mentions;
 		return renderMessageBody(message).replace(/<br\s?\\?>/g, ' ');
 	}
 
@@ -255,8 +258,6 @@ export const RoomHistoryManager = new class {
 		}
 		const room = this.getRoom(message.rid);
 		room.isLoading.set(true);
-		ChatMessage.remove({ rid: message.rid });
-
 		let typeName = undefined;
 
 		const subscription = ChatSubscription.findOne({ rid: message.rid });
@@ -272,6 +273,7 @@ export const RoomHistoryManager = new class {
 			if (!result || !result.messages) {
 				return;
 			}
+			ChatMessage.remove({ rid: message.rid });
 			for (const msg of Array.from(result.messages)) {
 				if (msg.t !== 'command') {
 					upsertMessage({ msg, subscription });

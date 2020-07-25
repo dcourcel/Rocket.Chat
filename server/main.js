@@ -3,8 +3,8 @@ import '../imports/startup/server';
 
 import '../lib/RegExp';
 
-import './lib/accounts';
-import './lib/cordova';
+import '../ee/server';
+import './lib/pushConfig';
 import './lib/roomFiles';
 import './startup/migrations';
 import './startup/appcache';
@@ -27,6 +27,7 @@ import './methods/deleteFileMessage';
 import './methods/deleteUser';
 import './methods/eraseRoom';
 import './methods/getAvatarSuggestion';
+import './methods/getPasswordPolicy';
 import './methods/getRoomById';
 import './methods/getRoomIdByNameOrId';
 import './methods/getRoomNameById';
@@ -46,6 +47,7 @@ import './methods/migrate';
 import './methods/muteUserInRoom';
 import './methods/openRoom';
 import './methods/readMessages';
+import './methods/readThreads';
 import './methods/registerUser';
 import './methods/removeRoomLeader';
 import './methods/removeRoomModerator';
