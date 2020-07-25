@@ -1,13 +1,14 @@
-import { UploadTransformObj } from './UploadTransformObj';
-
-export class NoTransform extends UploadTransformObj {
-	async processFile(filename, file) {
+export class NoTransform {
+	async processFile(fileInfo) {
 		return new Promise((resolve) => {
+			const result = fileInfo;
 			const fileData = [];
-			const sameFilename = filename;
-			file.on('data', (data) => fileData.push(data));
+			fileInfo.file.on('data', (data) => fileData.push(data));
 
-			file.on('end', () => { resolve({ filename: sameFilename, file: Buffer.concat(fileData) }); });
+			fileInfo.file.on('end', () => {
+				result.file = Buffer.concat(fileData);
+				resolve(result);
+			});
 		});
 	}
 }

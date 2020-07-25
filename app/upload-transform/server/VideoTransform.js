@@ -5,9 +5,8 @@ import handbrake from 'handbrake-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { settings } from '../../settings';
-import { UploadTransformObj } from './UploadTransformObj';
 
-export class VideoTransform extends UploadTransformObj {
+export class VideoTransform {
 	modifyFilename(filename) {
 		// Determine file output name. It should finish with a .mp4 extension.
 		const fileExtensionIndex = filename.lastIndexOf('.');
@@ -64,24 +63,30 @@ export class VideoTransform extends UploadTransformObj {
 		return options;
 	}
 
-	async processFile(filename, file) {
+	async processFile(fileInfo) {
 		const tempFilename = `${ os.tmpdir() }/${ uuidv4() }`;
 		const tempFilenameConverted = `${ tempFilename }_converted.mp4`;
-		const modifiedFilename = this.modifyFilename(filename);
 		return new Promise((resolve, reject) => {
+			const result = {
+				fieldname: fileInfo.fieldname,
+				filename: this.modifyFilename(fileInfo.filename),
+				encoding: fileInfo.encoding,
+				mimetype: 'video/mp4',
+			};
 			const stream = fs.createWriteStream(tempFilename);
-			file.pipe(stream);
+			fileInfo.file.pipe(stream);
 
-			file.on('end', () => {
+			fileInfo.file.on('end', () => {
 				stream.destroy();
 
 				handbrake.run(this.generateHandbrakeOptions(tempFilename))
 					.then(() => {
-						fs.readFile(tempFilenameConverted, (err, data) => {
+						fs.readFile(tempFilenameConverted, (err, convertedData) => {
 							if (err) {
 								reject(err);
 							} else {
-								resolve({ filename: modifiedFilename, file: data });
+								result.file = convertedData;
+								resolve(result);
 							}
 						});
 					})
