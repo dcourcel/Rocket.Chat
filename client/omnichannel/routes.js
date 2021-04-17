@@ -1,7 +1,7 @@
 import { HTML } from 'meteor/htmljs';
 
+import { createRouteGroup } from '../lib/createRouteGroup';
 import { createTemplateForComponent } from '../reactAdapters';
-import { createRouteGroup } from '../helpers/createRouteGroup';
 
 createTemplateForComponent('omnichannelFlex', () => import('./sidebar/OmnichannelSidebar'), {
 	renderContainerView: () => HTML.DIV({ style: 'height: 100%; position: relative;' }), // eslint-disable-line new-cap
@@ -30,7 +30,7 @@ registerOmnichannelRoute('/webhooks', {
 
 registerOmnichannelRoute('/customfields/:context?/:id?', {
 	name: 'omnichannel-customfields',
-	lazyRouteComponent: () => import('./customFields/CustomFieldsRouter'),
+	lazyRouteComponent: () => import('../views/omnichannel/customFields/CustomFieldsRoute'),
 });
 
 registerOmnichannelRoute('/appearance', {
@@ -50,17 +50,17 @@ registerOmnichannelRoute('/managers', {
 
 registerOmnichannelRoute('/units/:context?/:id?', {
 	name: 'omnichannel-units',
-	lazyRouteComponent: () => import('../../ee/client/omnichannel/units/UnitsRoute'),
+	lazyRouteComponent: () => import('../../../ee/client/omnichannel/units/UnitsRoute'),
 });
 
 registerOmnichannelRoute('/tags/:context?/:id?', {
 	name: 'omnichannel-tags',
-	lazyRouteComponent: () => import('../../ee/client/omnichannel/tags/TagsRoute'),
+	lazyRouteComponent: () => import('../../../ee/client/omnichannel/tags/TagsRoute'),
 });
 
 registerOmnichannelRoute('/priorities/:context?/:id?', {
 	name: 'omnichannel-priorities',
-	lazyRouteComponent: () => import('../../ee/client/omnichannel/priorities/PrioritiesRoute'),
+	lazyRouteComponent: () => import('../../../ee/client/omnichannel/priorities/PrioritiesRoute'),
 });
 
 registerOmnichannelRoute('/triggers/:context?/:id?', {
@@ -76,6 +76,11 @@ registerOmnichannelRoute('/facebook', {
 registerOmnichannelRoute('/current', {
 	name: 'omnichannel-current-chats',
 	lazyRouteComponent: () => import('./currentChats/CurrentChatsRoute'),
+});
+
+registerOmnichannelRoute('/departments/:context?/:id?/:tab?', {
+	name: 'omnichannel-departments',
+	lazyRouteComponent: () => import('./departments/DepartmentsRoute'),
 });
 
 registerOmnichannelRoute('/realtime-monitoring', {
