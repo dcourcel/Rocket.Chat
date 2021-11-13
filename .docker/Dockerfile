@@ -8,7 +8,7 @@ RUN groupadd -g 65533 -r rocketchat \
     && mkdir -p /app/uploads \
     && chown rocketchat:rocketchat /app/uploads \
     && apt-get update \
-    && apt-get install -y --no-install-recommends fontconfig
+    && apt-get install -y --no-install-recommends fontconfig handbrake-cli
 
 # --chown requires Docker 17.12 and works only on Linux
 ADD --chown=rocketchat:rocketchat . /app
@@ -27,7 +27,8 @@ RUN aptMark="$(apt-mark showmanual)" \
        | sort -u \
        | xargs -r apt-mark manual \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-    && npm cache clear --force
+    && npm cache clear --force \
+    && chown -R rocketchat:rocketchat /app
 
 USER rocketchat
 

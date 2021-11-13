@@ -1,6 +1,8 @@
 import { Meteor } from 'meteor/meteor';
 
+import { getHandlerFromMimeType } from '../../../file-upload/server/lib/UploadBuilder';
 import { FileUpload } from '../../../file-upload';
+import { Uploads } from '../../../models/server';
 import { Rooms, Messages } from '../../../models';
 import { API } from '../api';
 import { findAdminRooms, findChannelAndPrivateAutocomplete, findAdminRoom, findRoomsAvailableForTeams, findChannelAndPrivateAutocompleteWithPagination } from '../lib/rooms';
@@ -9,6 +11,8 @@ import { canAccessRoom, hasPermission } from '../../../authorization/server';
 import { Media } from '../../../../server/sdk';
 import { settings } from '../../../settings/server/index';
 import { getUploadFormData } from '../lib/getUploadFormData';
+import { updateMessage } from '../../../lib/server/functions/updateMessage';
+import { check } from 'meteor/check';
 
 function findRoomByIdOrName({ params, checkedArchived = true }) {
 	if ((!params.roomId || !params.roomId.trim()) && (!params.roomName || !params.roomName.trim())) {
@@ -76,30 +80,102 @@ API.v1.addRoute('rooms.upload/:rid', { authRequired: true }, {
 		if (!file) {
 			throw new Meteor.Error('invalid-field');
 		}
+		check(file, Match.ObjectIncluding({
+			filename: String,
+			fileBuffer: Buffer,
+			encoding: String,
+			mimetype: String,
+		}));
+		check(fields, Match.ObjectIncluding({
+			description: Match.Optional(String)
+		}));
 
-		const details = {
-			name: file.filename,
-			size: file.fileBuffer.length,
-			type: file.mimetype,
-			rid: this.urlParams.rid,
-			userId: this.userId,
-		};
-
-		const stripExif = settings.get('Message_Attachments_Strip_Exif');
-		const fileStore = FileUpload.getStore('Uploads');
-		if (stripExif) {
+		//const stripExif = settings.get('Message_Attachments_Strip_Exif');
+		//const fileStore = FileUpload.getStore('Uploads');
+		//if (stripExif) {
 			// No need to check mime. Library will ignore any files without exif/xmp tags (like BMP, ico, PDF, etc)
-			file.fileBuffer = Promise.await(Media.stripExifFromBuffer(file.fileBuffer));
+		//	file.fileBuffer = Promise.await(Media.stripExifFromBuffer(file.fileBuffer));
+		//}
+
+		const handler = getHandlerFromMimeType(file.mimetype, this.urlParams.rid, this.userId);
+		const msg = Promise.await(handler.processAttachment(file, fields));
+		//Meteor.call('sendFileMessage', this.urlParams.rid, null, file, fields);
+		return API.v1.success({ message: msg });
+
+		/*
+		const converter = getFromMimeType(file.mimetype);
+		if (converter === null) {
+			// No conversion is needed.
+			const details = {
+				name: file.filename,
+				size: file.fileBuffer.length,
+				type: file.mimetype,
+				rid: this.urlParams.rid,
+				userId: this.userId,
+			};
+			const uploadedFile = fileStore.insertSync(details, file.fileBuffer);
+			uploadedFile.description = fields.description;
+			delete fields.description;
+			Meteor.call('sendFileMessage', this.urlParams.rid, null, uploadedFile, fields);
+			return API.v1.success({ message: Messages.getMessageByFileIdAndUsername(uploadedFile._id, this.userId) });
 		}
-		const uploadedFile = fileStore.insertSync(details, file.fileBuffer);
+		else {
+			// There is a converter object. We generate a conversion progress message and
+			// we modify the message with the converted attachment when the converter
+			// finishes the conversion. The converter object indicates the conversion progress
+			// with a callback.
+			const msg = Meteor.call('sendMessage', {
+				rid: this.urlParams.rid,
+				ts: new Date(),
+				msg: '',
+				groupable: false,
+				attachments: [{fields: [{ short: true, title: "Progress", value: 0 }]}]
+			});
+			//converter.setProgressionCallback((percentage) => {
+				// Modify msg.
+			//});
+			converter.convert(file).then((resultFile) => {
+				const details = {
+					name: resultFile.filename,
+					size: resultFile.fileBuffer.length,
+					type: resultFile.mimetype,
+					rid: this.urlParams.rid,
+					userId: this.userId,
+				};
+				const uploadedFile = fileStore.insertSync(details, resultFile.fileBuffer);
+				Uploads.updateFileComplete(uploadedFile._id, this.userId, _.omit(uploadedFile, '_id'));
 
-		uploadedFile.description = fields.description;
+				const fileUrl = FileUpload.getPath(`${ uploadedFile._id }/${ encodeURI(uploadedFile.name) }`);
+		
+				const files = [{
+					_id: uploadedFile._id,
+					name: uploadedFile.name,
+					type: uploadedFile.type,
+				}];
+				uploadedFile.description = fields.description;
+				delete fields.description;
+				msg.attachments = [{
+					title: resultFile.name,
+					type: 'file',
+					description: resultFile.description,
+					title_link: fileUrl,
+					title_link_download: true,
+					video_url: fileUrl,
+					video_type: resultFile.type,
+					video_size: resultFile.size,
+				}];
+				msg.file = files[0];
+				msg.files = files;
 
-		delete fields.description;
-
-		Meteor.call('sendFileMessage', this.urlParams.rid, null, uploadedFile, fields);
-
-		return API.v1.success({ message: Messages.getMessageByFileIdAndUsername(uploadedFile._id, this.userId) });
+				// Modify msg with the attachment.
+				updateMessage(msg, Meteor.users.findOne(this.userId));
+				// Call sendFileMessage finished hook.
+			}).catch((err) => {
+				console.log(err);
+			});
+			return API.v1.success({ message: msg });
+		}
+		*/
 	},
 });
 
