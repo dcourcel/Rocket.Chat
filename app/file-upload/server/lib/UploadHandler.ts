@@ -5,7 +5,7 @@ import { Media } from '../../../../server/sdk';
 import { settings } from '../../../settings/server/index';
 import { updateMessage } from '../../../lib/server/functions/updateMessage';
 import { MessageAttachment } from '../../../../definition/IMessage/MessageAttachment/MessageAttachment';
-import { callbacks } from '../../../callbacks/server';
+import { callbacks } from '../../../../lib/callbacks';
 import { Rooms } from '../../../models/server/index';
 import { deleteMessage } from '../../../lib/server';
 import { IUser } from '../../../../definition/IUser';
@@ -149,7 +149,7 @@ export abstract class UploadHandler {
         this.conversionMsg.attachments = attachments;
         this.conversionMsg.file = files[0];
         this.conversionMsg.files = files;
-        const user = Meteor.users.findOne(this.uid);
+        const user = Meteor.users.findOne(this.uid) as IUser;
         updateMessage(this.conversionMsg, user);
 
 		callbacks.runAsync('afterFileUpload', { user: user, room: Rooms.findOneById(this.rid), message: this.conversionMsg });

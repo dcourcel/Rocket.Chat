@@ -6,7 +6,7 @@ import _ from 'underscore';
 
 import { UploadHandler, PostFileData, PostFields } from './UploadHandler';
 import { FileUpload } from '../../../file-upload/server';
-import { Uploads } from '../../../models/server';
+import { Uploads } from '../../../models/server/raw';
 import { settings } from '../../../settings/server';
 import { MessageAttachment } from '../../../../definition/IMessage/MessageAttachment/MessageAttachment';
 
