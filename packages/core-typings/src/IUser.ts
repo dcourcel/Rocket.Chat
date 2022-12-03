@@ -54,7 +54,11 @@ export interface IUserServices {
 	resume?: {
 		loginTokens?: LoginToken[];
 	};
-	cloud?: unknown;
+	cloud?: {
+		accessToken: string;
+		refreshToken: string;
+		expiresAt: Date;
+	};
 	google?: any;
 	facebook?: any;
 	github?: any;
@@ -147,6 +151,9 @@ export interface IUser extends IRocketChatRecord {
 	canViewAllInfo?: boolean;
 	phone?: string;
 	reason?: string;
+	federation?: {
+		avatarUrl?: string;
+	};
 }
 
 export interface IRegisterUser extends IUser {

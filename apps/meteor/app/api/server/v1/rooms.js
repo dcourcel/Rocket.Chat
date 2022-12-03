@@ -83,23 +83,24 @@ API.v1.addRoute(
 	'rooms.upload/:rid',
 	{ authRequired: true },
 	{
-		post() {
+		async post() {
 			if (!canAccessRoomId(this.urlParams.rid, this.userId)) {
 				return API.v1.unauthorized();
 			}
 
-			const [file, fields] = Promise.await(
-				getUploadFormData(
-					{
-						request: this.request,
-					},
-					{ field: 'file' },
-				),
+			const file = await getUploadFormData(
+				{
+					request: this.request,
+				},
+				{ field: 'file', sizeLimit: settings.get('FileUpload_MaxFileSize') },
 			);
 
 			if (!file) {
 				throw new Meteor.Error('invalid-field');
 			}
+
+			const { fields } = file;
+
 			check(file, Match.ObjectIncluding({
 				filename: String,
 				fileBuffer: Buffer,
