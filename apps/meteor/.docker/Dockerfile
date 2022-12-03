@@ -27,8 +27,7 @@ RUN aptMark="$(apt-mark showmanual)" \
     | sort -u \
     | xargs -r apt-mark manual \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-    && npm cache clear --force \
-    && chown -R rocketchat:rocketchat /app
+    && npm cache clear --force
 
 USER rocketchat
 
