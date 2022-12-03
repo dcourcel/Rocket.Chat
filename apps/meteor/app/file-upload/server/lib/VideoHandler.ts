@@ -5,10 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import _ from 'underscore';
 
 import { UploadHandler, PostFileData, PostFields } from './UploadHandler';
-import { FileUpload } from '../../../file-upload/server';
-import { Uploads } from '../../../models/server/raw';
+import { FileUpload } from './FileUpload';
+import { Uploads } from '@rocket.chat/models';
 import { settings } from '../../../settings/server';
-import { MessageAttachment } from '../../../../../../packages/core-typings/src/IMessage/MessageAttachment/MessageAttachment';
+import { MessageAttachment } from '@rocket.chat/core-typings';
 
 export class VideoHandler extends UploadHandler {
 	constructor(rid: string, uid: string) {
