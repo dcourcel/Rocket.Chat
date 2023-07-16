@@ -1,9 +1,9 @@
 import { Meteor } from 'meteor/meteor';
+import { check } from 'meteor/check';
 import type { Notifications } from '@rocket.chat/rest-typings';
 import { isGETRoomsNameExists } from '@rocket.chat/rest-typings';
-import { Messages, Rooms, Users } from '@rocket.chat/models';
+import { Rooms, Users } from '@rocket.chat/models';
 import type { IRoom } from '@rocket.chat/core-typings';
-import { Media } from '@rocket.chat/core-services';
 
 import { API } from '../api';
 import { canAccessRoomAsync, canAccessRoomIdAsync } from '../../../authorization/server/functions/canAccessRoom';
@@ -11,7 +11,7 @@ import { hasPermissionAsync } from '../../../authorization/server/functions/hasP
 import { getUploadFormData } from '../lib/getUploadFormData';
 import { settings } from '../../../settings/server';
 import { eraseRoom } from '../../../../server/methods/eraseRoom';
-import { FileUpload } from '../../../file-upload/server';
+import { getHandlerFromMimeType } from '../../../file-upload/server/lib/UploadBuilder';
 import {
 	findAdminRoom,
 	findAdminRooms,
@@ -152,36 +152,20 @@ API.v1.addRoute(
 			}
 
 			const { fields } = file;
-			let { fileBuffer } = file;
 
-			const details = {
-				name: file.filename,
-				size: fileBuffer.length,
-				type: file.mimetype,
-				rid: this.urlParams.rid,
-				userId: this.userId,
-			};
+			check(file, Match.ObjectIncluding({
+				filename: String,
+				fileBuffer: Buffer,
+				encoding: String,
+				mimetype: String,
+			}));
+			check(fields, Match.ObjectIncluding({
+				description: Match.Optional(String)
+			}));
 
-			const stripExif = settings.get('Message_Attachments_Strip_Exif');
-			if (stripExif) {
-				// No need to check mime. Library will ignore any files without exif/xmp tags (like BMP, ico, PDF, etc)
-				fileBuffer = await Media.stripExifFromBuffer(fileBuffer);
-			}
-
-			const fileStore = FileUpload.getStore('Uploads');
-			const uploadedFile = await fileStore.insert(details, fileBuffer);
-
-			uploadedFile.description = fields.description;
-
-			delete fields.description;
-
-			await Meteor.callAsync('sendFileMessage', this.urlParams.rid, null, uploadedFile, fields);
-
-			const message = await Messages.getMessageByFileIdAndUsername(uploadedFile._id, this.userId);
-
-			return API.v1.success({
-				message,
-			});
+			const handler = getHandlerFromMimeType(file.mimetype, this.urlParams.rid, this.userId);
+			const msg = Promise.await(handler.processAttachment(file, fields));
+			return API.v1.success({ message: msg });
 		},
 	},
 );
