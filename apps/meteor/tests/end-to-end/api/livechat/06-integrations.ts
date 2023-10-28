@@ -1,7 +1,6 @@
-/* eslint-env mocha */
-
 import type { ISetting } from '@rocket.chat/core-typings';
 import { expect } from 'chai';
+import { before, describe, it } from 'mocha';
 import type { Response } from 'supertest';
 
 import { getCredentials, api, request, credentials } from '../../../data/api-data';
@@ -133,7 +132,6 @@ describe('LIVECHAT - Integrations', function () {
 			it('should fail if setting Livechat_webhookUrl is not set', async () => {
 				await updateSetting('Livechat_webhookUrl', '');
 				await updatePermission('view-livechat-webhooks', ['admin', 'livechat-manager']);
-				await setTimeout(() => null, 1000);
 				const response = await request.post(api('livechat/webhook.test')).set(credentials).expect(400);
 				expect(response.body).to.have.property('success', false);
 			});

@@ -1,3 +1,4 @@
+import { Message } from '@rocket.chat/fuselage';
 import { memo, ReactElement, useContext, useMemo } from 'react';
 
 import { MarkupInteractionContext } from '../MarkupInteractionContext';
@@ -6,8 +7,10 @@ type ChannelMentionElementProps = {
 	mention: string;
 };
 
+const handleChannelMention = (mention: string, withSymbol: boolean | undefined): string => (withSymbol ? `#${mention}` : mention);
+
 const ChannelMentionElement = ({ mention }: ChannelMentionElementProps): ReactElement => {
-	const { resolveChannelMention, onChannelMentionClick } = useContext(MarkupInteractionContext);
+	const { resolveChannelMention, onChannelMentionClick, showMentionSymbol } = useContext(MarkupInteractionContext);
 
 	const resolved = useMemo(() => resolveChannelMention?.(mention), [mention, resolveChannelMention]);
 	const handleClick = useMemo(() => (resolved ? onChannelMentionClick?.(resolved) : undefined), [resolved, onChannelMentionClick]);
@@ -17,9 +20,9 @@ const ChannelMentionElement = ({ mention }: ChannelMentionElementProps): ReactEl
 	}
 
 	return (
-		<span className='mention-link mention-link--room' onClick={handleClick}>
-			#{resolved.name ?? mention}
-		</span>
+		<Message.Highlight variant='link' clickable onClick={handleClick}>
+			{handleChannelMention(resolved.name ?? mention, showMentionSymbol)}
+		</Message.Highlight>
 	);
 };
 

@@ -1,6 +1,6 @@
+import { api } from '@rocket.chat/core-services';
 import type { IUser, IRole, AtLeast } from '@rocket.chat/core-typings';
 import { Users } from '@rocket.chat/models';
-import { api } from '@rocket.chat/core-services';
 
 import { settings } from '../../../app/settings/server';
 import { addUserRolesAsync } from '../../../server/lib/roles/addUserRoles';
@@ -30,7 +30,11 @@ function filterRoleList(
 	return filteredRoles.filter((roleId) => rolesToFilterIn.includes(roleId));
 }
 
-function broadcastRoleChange(type: string, roleList: Array<IRole['_id']>, user: AtLeast<IUser, '_id' | 'username'>): void {
+function broadcastRoleChange(
+	type: 'changed' | 'added' | 'removed',
+	roleList: Array<IRole['_id']>,
+	user: AtLeast<IUser, '_id' | 'username'>,
+): void {
 	if (!settings.get('UI_DisplayRoles')) {
 		return;
 	}

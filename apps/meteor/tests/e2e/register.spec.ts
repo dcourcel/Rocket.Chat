@@ -24,7 +24,7 @@ test.describe.serial('register', () => {
 			});
 
 			await test.step('expect trigger a validation error if different password is provided on register', async () => {
-				await poRegistration.inputName.fill(faker.name.firstName());
+				await poRegistration.inputName.fill(faker.person.firstName());
 				await poRegistration.inputEmail.fill(faker.internet.email());
 				await poRegistration.username.fill(faker.internet.userName());
 				await poRegistration.inputPassword.fill('any_password');
@@ -64,7 +64,7 @@ test.describe.serial('register', () => {
 				});
 
 				await test.step('expect to found no errors after submit the form', async () => {
-					await poRegistration.inputName.fill(faker.name.firstName());
+					await poRegistration.inputName.fill(faker.person.firstName());
 					await poRegistration.inputEmail.fill(faker.internet.email());
 					await poRegistration.username.fill(faker.internet.userName());
 					await poRegistration.inputPassword.fill('any_password');
@@ -123,6 +123,15 @@ test.describe.serial('register', () => {
 				await expect(poRegistration.registrationDisabledCallout).toBeVisible();
 			});
 		});
+
+		test('should not have any accessibility violations', async ({ page, makeAxeBuilder }) => {
+			await page.goto('/home');
+			await poRegistration.goToRegister.click();
+	
+			const results = await makeAxeBuilder().analyze();
+	
+			expect(results.violations).toEqual([]);
+		});
 	});
 
 	test.describe('Registration for secret password', async () => {
@@ -158,7 +167,7 @@ test.describe.serial('register', () => {
 		test('It should register a user if the right secret password is provided', async ({ page }) => {
 			await page.goto('/register/secret');
 			await page.waitForSelector('role=form');
-			await poRegistration.inputName.fill(faker.name.firstName());
+			await poRegistration.inputName.fill(faker.person.firstName());
 			await poRegistration.inputEmail.fill(faker.internet.email());
 			await poRegistration.username.fill(faker.internet.userName());
 			await poRegistration.inputPassword.fill('any_password');

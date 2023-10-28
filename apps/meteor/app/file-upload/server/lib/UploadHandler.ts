@@ -1,13 +1,14 @@
 import _ from 'underscore';
-import { Messages, Rooms } from '@rocket.chat/models';
-import type { MessageAttachment, IUser, IUpload } from '@rocket.chat/core-typings';
+import type { IMessage, IUpload, IUser, MessageAttachment, MessageAttachmentDefault } from '@rocket.chat/core-typings';
+import { Logger } from '@rocket.chat/logger';
+import { Messages, Rooms, Users } from '@rocket.chat/models';
 import { Media } from '@rocket.chat/core-services';
 import { settings } from '../../../settings/server/index';
+import { deleteMessage } from '../../../lib/server/functions/deleteMessage';
 import { updateMessage } from '../../../lib/server/functions/updateMessage';
+import { executeSendMessage } from '../../../lib/server/methods/sendMessage';
 import { callbacks } from '../../../../lib/callbacks';
 import { FileUpload } from './FileUpload';
-import { deleteMessage } from '../../../lib/server';
-import { Logger } from '../../../logger/server';
 import { OptionalId } from 'mongodb';
 
 
@@ -36,7 +37,7 @@ export type FileStoreResult = {
 export abstract class UploadHandler {
     public static readonly logger: any = new Logger('FileUpload');
 
-    private conversionMsg: any;
+    private conversionMsg?: IMessage;
     private roomId: string;
     private userId: string;
     private updateProgressThrotled: Function | null;
@@ -55,9 +56,9 @@ export abstract class UploadHandler {
         return this.userId;
     }
 
-    public abstract processAttachment(file: PostFileData, fields: PostFields): Promise<object>;
+    public abstract processAttachment(file: PostFileData, fields: PostFields): Promise<IMessage | null>;
 
-    protected async insertIntoFileStore(file: PostFileData, fields: PostFields): Promise<FileStoreResult> {
+    protected async insertIntoFileStore(file: PostFileData, fields: PostFields): Promise<IUpload> {
 		const stripExif = settings.get('Message_Attachments_Strip_Exif');
         if (stripExif) {
             // No need to check mime. Library will ignore any files without exif/xmp tags (like BMP, ico, PDF, etc)
@@ -75,61 +76,74 @@ export abstract class UploadHandler {
         uploadedFile.description = fields.description;
         delete fields.description;
         // Note: no check is performed here for the object structure returned.
-        return uploadedFile as FileStoreResult;
+        return uploadedFile as IUpload;
     }
 
-    protected sendConversionMessage(): void {
+    protected async sendConversionMessage(): Promise<void> {
         if (this.conversionMsg !== undefined) {
             throw new Error("Conversion message already generated.");
         }
-        this.conversionMsg = Meteor.call('sendMessage', {
+
+        this.conversionMsg = await executeSendMessage(this.userId, {
             rid: this.rid,
             ts: new Date(),
             groupable: false,
             attachments: [{fields: [{ title: "Conversion du vidéo", value: "0%" }]}]
         });
 
+        const user = await Users.findOneById(this.uid);
+        if (user == undefined) {
+            return;
+        }
+
         this.updateProgressThrotled = _.throttle(() => {
-            const user = Meteor.users.findOne(this.uid);
             const copiedMsg: any = {};
             Object.assign(copiedMsg, this.conversionMsg);
-            updateMessage(copiedMsg, user as IUser);
+            updateMessage(copiedMsg, user);
         }, 1000, {trailing: false});
     }
 
-    protected updateProgress(progress: number): boolean {
-        if (this.conversionMsg === undefined) {
+    protected async updateProgress(progress: number): Promise<boolean> {
+        if (this.conversionMsg == undefined) {
             throw new Error("Conversion message not generated.");
         }
 
-        if (!Messages.findOneById(this.conversionMsg._id)) {
+        if (!await Messages.findOneById(this.conversionMsg._id)) {
             // The message does not exist anymore. Report it to the caller.
             return false;
         }
 
-        this.conversionMsg.attachments[0].fields[0].value = progress.toString() + "%";
+        if (((this.conversionMsg.attachments?.[0] as MessageAttachmentDefault).fields?.length ?? 0) > 0) {
+            (this.conversionMsg.attachments![0] as MessageAttachmentDefault).fields![0].value = progress.toString() + "%";
+        }
         this.updateProgressThrotled?.();
         return true;
     }
 
-    protected showErrorInAttachment(error: String, duration: number) {
-        if (this.conversionMsg === undefined) {
+    protected async showErrorInAttachment(error: string, duration: number) {
+        if (this.conversionMsg == undefined) {
             throw new Error("Conversion message not generated.");
         }
-        this.conversionMsg.attachments[0].fields[0].title = "Erreur";
-        this.conversionMsg.attachments[0].fields[0].value = error;
-        const user = Meteor.users.findOne(this.uid);
-        const copiedMsg: any = {};
-        Object.assign(copiedMsg, this.conversionMsg);
-        updateMessage(copiedMsg, user as IUser);
+        const user = await Users.findOneById(this.uid);
+        if (user == undefined) {
+            return;
+        }
+        if (((this.conversionMsg.attachments?.[0] as MessageAttachmentDefault).fields?.length ?? 0) > 0) {
+            (this.conversionMsg.attachments![0] as MessageAttachmentDefault).fields![0].title = "Erreur";
+            (this.conversionMsg.attachments![0] as MessageAttachmentDefault).fields![0].value = error;
+            const copiedMsg: any = {};
+            Object.assign(copiedMsg, this.conversionMsg);
+            updateMessage(copiedMsg, user);
+        }
+
         // Automatically delete the message after the duration specified.
         if (duration > 0) {
-            Meteor.setTimeout(async () => await Messages.findOneById(this.conversionMsg._id) ? deleteMessage(this.conversionMsg, user as IUser) : null, duration);
+            Meteor.setTimeout(async () => await Messages.findOneById(this.conversionMsg!._id) ? deleteMessage(this.conversionMsg!, user) : null, duration);
         }
     }
 
-    protected async sendAttachmentMessage(fileStoreResult: FileStoreResult, attachments: MessageAttachment[]) {
-        if (this.conversionMsg === undefined) {
+    protected async sendAttachmentMessage(fileStoreResult: IUpload, attachments: MessageAttachment[]) {
+        if (this.conversionMsg == undefined) {
             throw new Error("Conversion message not generated.");
         }
 
@@ -140,13 +154,14 @@ export abstract class UploadHandler {
 
         const files = [{
             _id: fileStoreResult._id,
-            name: fileStoreResult.name,
-            type: fileStoreResult.type,
+            name: fileStoreResult.name || "",
+            type: fileStoreResult.type || "",
+            format: fileStoreResult.extension || "",
+            size: fileStoreResult.size || 0
         }];
 
         // Modify existing conversion message.
         this.conversionMsg.attachments = attachments;
-        this.conversionMsg.file = files[0];
         this.conversionMsg.files = files;
         const user = Meteor.users.findOne(this.uid) as IUser;
         updateMessage(this.conversionMsg, user);
@@ -160,7 +175,7 @@ export abstract class UploadHandler {
 
     }
 
-    protected getConversionMessage(): object | undefined {
+    protected getConversionMessage(): IMessage | undefined {
         return this.conversionMsg;
     }
 }

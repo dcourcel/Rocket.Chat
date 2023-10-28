@@ -1,13 +1,12 @@
 {
 	"name": "@rocket.chat/core-typings",
-	"version": "6.2.10",
-	"private": true,
+	"version": "6.4.3",
 	"devDependencies": {
 		"@rocket.chat/eslint-config": "workspace:^",
-		"eslint": "^8.29.0",
-		"mongodb": "^4.12.1",
-		"prettier": "~2.8.7",
-		"typescript": "~5.0.2"
+		"eslint": "~8.45.0",
+		"mongodb": "^4.17.1",
+		"prettier": "~2.8.8",
+		"typescript": "~5.2.2"
 	},
 	"scripts": {
 		"lint": "eslint --ext .js,.jsx,.ts,.tsx .",
@@ -22,10 +21,10 @@
 		"/dist"
 	],
 	"dependencies": {
-		"@rocket.chat/apps-engine": "1.39.1",
-		"@rocket.chat/icons": "0.31.23",
-		"@rocket.chat/message-parser": "0.31.23",
-		"@rocket.chat/ui-kit": "0.31.23"
+		"@rocket.chat/apps-engine": "1.41.0-alpha.290",
+		"@rocket.chat/icons": "^0.32.0",
+		"@rocket.chat/message-parser": "next",
+		"@rocket.chat/ui-kit": "next"
 	},
 	"volta": {
 		"extends": "../../package.json"

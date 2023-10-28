@@ -1,23 +1,23 @@
 import crypto from 'crypto';
 import type { ServerResponse, IncomingMessage } from 'http';
 
+import type { IRocketChatAssets, IRocketChatAsset, IRocketChatAssetCache } from '@rocket.chat/core-typings';
+import { Settings } from '@rocket.chat/models';
 import type { ServerMethods } from '@rocket.chat/ui-contexts';
+import type { NextHandleFunction } from 'connect';
+import sizeOf from 'image-size';
 import { Meteor } from 'meteor/meteor';
 import { WebApp, WebAppInternals } from 'meteor/webapp';
 import { WebAppHashing } from 'meteor/webapp-hashing';
-import _ from 'underscore';
-import sizeOf from 'image-size';
 import sharp from 'sharp';
-import type { NextHandleFunction } from 'connect';
-import type { IRocketChatAssets, IRocketChatAsset, IRocketChatAssetCache } from '@rocket.chat/core-typings';
-import { Settings } from '@rocket.chat/models';
+import _ from 'underscore';
 
-import { settings, settingsRegistry } from '../../settings/server';
-import { getURL } from '../../utils/lib/getURL';
-import { getExtension } from '../../utils/lib/mimeTypes';
 import { hasPermissionAsync } from '../../authorization/server/functions/hasPermission';
 import { RocketChatFile } from '../../file/server';
 import { methodDeprecationLogger } from '../../lib/server/lib/deprecationWarningLogger';
+import { settings, settingsRegistry } from '../../settings/server';
+import { getExtension } from '../../utils/lib/mimeTypes';
+import { getURL } from '../../utils/server/getURL';
 
 const RocketChatAssetsInstance = new RocketChatFile.GridFS({
 	name: 'assets',
@@ -234,8 +234,8 @@ class RocketChatAssetsClass {
 		await RocketChatAssetsInstance.deleteFile(asset);
 
 		const ws = RocketChatAssetsInstance.createWriteStream(asset, contentType);
-		ws.on('end', function () {
-			return Meteor.setTimeout(async function () {
+		ws.on('end', () => {
+			return setTimeout(async () => {
 				const key = `Assets_${asset}`;
 				const value = {
 					url: `assets/${asset}.${extension}`,
@@ -243,7 +243,6 @@ class RocketChatAssetsClass {
 				};
 
 				void Settings.updateValueById(key, value);
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				return RocketChatAssets.processAsset(key, value);
 			}, 200);
 		});
@@ -265,7 +264,6 @@ class RocketChatAssetsClass {
 		};
 
 		void Settings.updateValueById(key, value);
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		await RocketChatAssets.processAsset(key, value);
 	}
 
@@ -323,19 +321,11 @@ class RocketChatAssetsClass {
 		const asset = settings.get<IRocketChatAsset>(assetName);
 		const url = asset.url || asset.defaultUrl;
 
-		return getURL(url, options);
+		return getURL(url as string, options);
 	}
 }
 
 export const RocketChatAssets = new RocketChatAssetsClass();
-
-void settingsRegistry.addGroup('Assets', async function () {
-	await this.add('Assets_SvgFavicon_Enable', true, {
-		type: 'boolean',
-		group: 'Assets',
-		i18nLabel: 'Enable_Svg_Favicon',
-	});
-});
 
 async function addAssetToSetting(asset: string, value: IRocketChatAsset): Promise<void> {
 	const key = `Assets_${asset}`;
@@ -374,7 +364,7 @@ void (async () => {
 settings.watchByRegex(/^Assets_/, (key, value) => RocketChatAssets.processAsset(key, value));
 
 Meteor.startup(() => {
-	Meteor.setTimeout(() => {
+	setTimeout(() => {
 		process.emit('message', {
 			refresh: 'client',
 		});
@@ -442,7 +432,7 @@ declare module '@rocket.chat/ui-contexts' {
 Meteor.methods<ServerMethods>({
 	async refreshClients() {
 		const uid = Meteor.userId();
-		methodDeprecationLogger.warn('refreshClients will be deprecated in future versions of Rocket.Chat');
+		methodDeprecationLogger.method('refreshClients', '7.0.0');
 
 		if (!uid) {
 			throw new Meteor.Error('error-invalid-user', 'Invalid user', {

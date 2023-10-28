@@ -1,17 +1,22 @@
-import { Meteor } from 'meteor/meteor';
-import { check } from 'meteor/check';
+import type { IRoom } from '@rocket.chat/core-typings';
+import { Rooms, Users } from '@rocket.chat/models';
 import type { Notifications } from '@rocket.chat/rest-typings';
 import { isGETRoomsNameExists } from '@rocket.chat/rest-typings';
-import { Rooms, Users } from '@rocket.chat/models';
-import type { IRoom } from '@rocket.chat/core-typings';
-
-import { API } from '../api';
+import { Meteor } from 'meteor/meteor';
+ 
+import { isTruthy } from '../../../../lib/isTruthy';
+import * as dataExport from '../../../../server/lib/dataExport';
+import { eraseRoom } from '../../../../server/methods/eraseRoom';
 import { canAccessRoomAsync, canAccessRoomIdAsync } from '../../../authorization/server/functions/canAccessRoom';
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
-import { getUploadFormData } from '../lib/getUploadFormData';
+import { saveRoomSettings } from '../../../channel-settings/server/methods/saveRoomSettings';
+import { createDiscussion } from '../../../discussion/server/methods/createDiscussion';
+import { leaveRoomMethod } from '../../../lib/server/methods/leaveRoom';
 import { settings } from '../../../settings/server';
-import { eraseRoom } from '../../../../server/methods/eraseRoom';
-import { getHandlerFromMimeType } from '../../../file-upload/server/lib/UploadBuilder';
+import { API } from '../api';
+import { composeRoomWithLastMessage } from '../helpers/composeRoomWithLastMessage';
+import { getPaginationItems } from '../helpers/getPaginationItems';
+import { getUploadFormData } from '../lib/getUploadFormData';
 import {
 	findAdminRoom,
 	findAdminRooms,
@@ -20,9 +25,8 @@ import {
 	findChannelAndPrivateAutocompleteWithPagination,
 	findRoomsAvailableForTeams,
 } from '../lib/rooms';
-import * as dataExport from '../../../../server/lib/dataExport';
-import { composeRoomWithLastMessage } from '../helpers/composeRoomWithLastMessage';
-import { getPaginationItems } from '../helpers/getPaginationItems';
+import { check } from 'meteor/check';
+import { getHandlerFromMimeType } from '../../../file-upload/server/lib/UploadBuilder';
 
 async function findRoomByIdOrName({
 	params,
@@ -164,8 +168,10 @@ API.v1.addRoute(
 			}));
 
 			const handler = getHandlerFromMimeType(file.mimetype, this.urlParams.rid, this.userId);
-			const msg = Promise.await(handler.processAttachment(file, fields));
-			return API.v1.success({ message: msg });
+			const message = Promise.await(handler.processAttachment(file, fields));
+			return API.v1.success({
+				message,
+			});
 		},
 	},
 );
@@ -284,7 +290,11 @@ API.v1.addRoute(
 	{
 		async post() {
 			const room = await findRoomByIdOrName({ params: this.bodyParams });
-			await Meteor.callAsync('leaveRoom', room._id);
+			const user = await Users.findOneById(this.userId);
+			if (!user) {
+				return API.v1.failure('Invalid user');
+			}
+			await leaveRoomMethod(user, room._id);
 
 			return API.v1.success();
 		},
@@ -312,12 +322,12 @@ API.v1.addRoute(
 				return API.v1.failure('Body parameter "encrypted" must be a boolean when included.');
 			}
 
-			const discussion = await Meteor.callAsync('createDiscussion', {
+			const discussion = await createDiscussion(this.userId, {
 				prid,
 				pmid,
 				t_name,
 				reply,
-				users: users || [],
+				users: users?.filter(isTruthy) || [],
 				encrypted,
 			});
 
@@ -373,7 +383,7 @@ API.v1.addRoute(
 				await findAdminRooms({
 					uid: this.userId,
 					filter: filter || '',
-					types: types || [],
+					types: (types && !Array.isArray(types) ? [types] : types) ?? [],
 					pagination: {
 						offset,
 						count,
@@ -500,7 +510,7 @@ API.v1.addRoute(
 		async post() {
 			const { rid, ...params } = this.bodyParams;
 
-			const result = await Meteor.callAsync('saveRoomSettings', rid, params);
+			const result = await saveRoomSettings(this.userId, rid, params);
 
 			return API.v1.success({ rid: result.rid });
 		},

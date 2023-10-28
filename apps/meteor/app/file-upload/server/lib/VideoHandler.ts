@@ -8,19 +8,22 @@ import { UploadHandler, PostFileData, PostFields } from './UploadHandler';
 import { FileUpload } from './FileUpload';
 import { Uploads } from '@rocket.chat/models';
 import { settings } from '../../../settings/server';
+import type { IMessage } from '@rocket.chat/core-typings';
 import { MessageAttachment } from '@rocket.chat/core-typings';
 
 export class VideoHandler extends UploadHandler {
+    private progressAction: Promise<void> = Promise.resolve();
+
 	constructor(rid: string, uid: string) {
 		super(rid, uid);
 	}
 
-    public async processAttachment(file: PostFileData, fields: PostFields): Promise<object> {
+    public async processAttachment(file: PostFileData, fields: PostFields): Promise<IMessage | null> {
         this.sendConversionMessage();
-        this.convert(file).then(async (fileModified) => {
+        return this.convert(file).then(async (fileModified) => {
             const fileStoreResult = await this.insertIntoFileStore(fileModified, fields);
 		    Uploads.updateFileComplete(fileStoreResult._id, this.uid, _.omit(fileStoreResult, '_id'));
-			const fileUrl = FileUpload.getPath(`${ fileStoreResult._id }/${ encodeURI(fileStoreResult.name) }`);
+			const fileUrl = FileUpload.getPath(`${ fileStoreResult._id }/${ encodeURI(fileStoreResult.name || '') }`);
 
 			const attachments: MessageAttachment[] = [{
 				title: fileStoreResult.name,
@@ -32,8 +35,9 @@ export class VideoHandler extends UploadHandler {
 				video_type: fileStoreResult.type,
 				video_size: fileStoreResult.size
 			}];
-            this.sendAttachmentMessage(fileStoreResult, attachments);
+            return this.sendAttachmentMessage(fileStoreResult, attachments);
         })
+		.then((_) => this.getConversionMessage() ?? null)
 		.catch((error) => {
 			// Verify if the error is from Handbrake.
 			// Investigation: I was not able to use handbrake.HandbrakeErrors because it is not an object at runtime.
@@ -49,8 +53,8 @@ export class VideoHandler extends UploadHandler {
 				UploadHandler.logger.error("Unknown conversion error. " + error.toString());
 				this.showErrorInAttachment("Erreur inconnue lors de la conversion vidéo.", 10000);
 			}
+			return null;
 		});
-        return this.getConversionMessage() as object;
     }
 
     private async convert(file: PostFileData): Promise<PostFileData> {
@@ -77,9 +81,11 @@ export class VideoHandler extends UploadHandler {
     }
 
 	private static onProgress(self: VideoHandler, progress: handbrake.HandbrakeProgress, handbrakeSpawn: handbrake.Handbrake) {
-		if (!self.updateProgress(progress.percentComplete)) {
-			handbrakeSpawn.cancel();
-		}
+		self.progressAction = self.progressAction.then(async (_) => {
+			if (!await self.updateProgress(progress.percentComplete)) {
+				handbrakeSpawn.cancel();
+			}
+		});
 	}
 
 	private async processHandbrakeConversion(tempFilename: string): Promise<void> {
@@ -102,7 +108,7 @@ export class VideoHandler extends UploadHandler {
 		const fileExtensionIndex = filename.lastIndexOf('.');
 		filename = fileExtensionIndex === -1 || fileExtensionIndex === 0
 			? filename = `${ filename }.mp4`
-			: filename = `${ filename.substr(0, fileExtensionIndex) }.mp4`;
+			: filename = `${ filename.substring(0, fileExtensionIndex) }.mp4`;
 		return filename;
 	}
 

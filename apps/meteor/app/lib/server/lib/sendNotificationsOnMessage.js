@@ -1,22 +1,22 @@
+import { Subscriptions, Users } from '@rocket.chat/models';
 import { Meteor } from 'meteor/meteor';
 import moment from 'moment';
-import { Subscriptions, Users } from '@rocket.chat/models';
 
-import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
-import { settings } from '../../../settings/server';
 import { callbacks } from '../../../../lib/callbacks';
+import { roomCoordinator } from '../../../../server/lib/rooms/roomCoordinator';
+import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
+import { Notification } from '../../../notification-queue/server/NotificationQueue';
+import { settings } from '../../../settings/server';
 import {
 	callJoinRoom,
 	messageContainsHighlight,
 	parseMessageTextPerUser,
 	replaceMentionedUsernamesWithFullNames,
 } from '../functions/notifications';
+import { notifyDesktopUser, shouldNotifyDesktop } from '../functions/notifications/desktop';
 import { getEmailData, shouldNotifyEmail } from '../functions/notifications/email';
 import { getPushData, shouldNotifyMobile } from '../functions/notifications/mobile';
-import { notifyDesktopUser, shouldNotifyDesktop } from '../functions/notifications/desktop';
-import { Notification } from '../../../notification-queue/server/NotificationQueue';
 import { getMentions } from './notifyUsersOnMessage';
-import { roomCoordinator } from '../../../../server/lib/rooms/roomCoordinator';
 
 let TroubleshootDisableNotifications;
 
@@ -73,7 +73,7 @@ export const sendNotification = async ({
 
 	const isThread = !!message.tmid && !message.tshow;
 
-	notificationMessage = parseMessageTextPerUser(notificationMessage, message, receiver);
+	notificationMessage = await parseMessageTextPerUser(notificationMessage, message, receiver);
 
 	const isHighlighted = messageContainsHighlight(message, subscription.userHighlights);
 
@@ -221,7 +221,7 @@ export async function sendMessageNotifications(message, room, usersInThread = []
 		return message;
 	}
 
-	const { toAll: hasMentionToAll, toHere: hasMentionToHere, mentionIds } = getMentions(message);
+	const { toAll: hasMentionToAll, toHere: hasMentionToHere, mentionIds } = await getMentions(message);
 
 	const mentionIdsWithoutGroups = [...mentionIds];
 
@@ -236,7 +236,7 @@ export async function sendMessageNotifications(message, room, usersInThread = []
 	// add users in thread to mentions array because they follow the same rules
 	mentionIds.push(...usersInThread);
 
-	let notificationMessage = callbacks.run('beforeSendMessageNotifications', message.msg);
+	let notificationMessage = await callbacks.run('beforeSendMessageNotifications', message.msg);
 	if (mentionIds.length > 0 && settings.get('UI_Use_Real_Name')) {
 		notificationMessage = replaceMentionedUsernamesWithFullNames(message.msg, message.mentions);
 	}

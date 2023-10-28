@@ -10,7 +10,7 @@ test.use({ storageState: Users.admin.state });
 test.describe.serial('teams-management', () => {
 	let poHomeTeam: HomeTeam;
 	let targetChannel: string;
-	const targetTeam = faker.datatype.uuid();
+	const targetTeam = faker.string.uuid();
 
 	test.beforeAll(async ({ api }) => {
 		targetChannel = await createTargetChannel(api);
@@ -42,12 +42,11 @@ test.describe.serial('teams-management', () => {
 	test('expect send hello in the "targetTeam" and reply in a thread', async ({ page }) => {
 		await poHomeTeam.sidenav.openChat(targetTeam);
 		await poHomeTeam.content.sendMessage('hello');
-		await poHomeTeam.content.openLastMessageMenu();
+		await page.locator('[data-qa-type="message"]').last().hover();
 
-		await page.locator('[data-qa-id="reply-in-thread"]').click();
-		await page.locator('.rcx-vertical-bar').locator('role=textbox[name="Message"]').type('any-reply-message');
+		await page.locator('role=button[name="Reply in thread"]').click();
+		await page.locator('.rcx-vertical-bar').locator(`role=textbox[name="Message #${targetTeam}"]`).type('any-reply-message');
 		await page.keyboard.press('Enter');
-
 		await expect(poHomeTeam.tabs.flexTabViewThreadMessage).toHaveText('any-reply-message');
 	});
 
