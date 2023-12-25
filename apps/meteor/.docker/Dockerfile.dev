@@ -1,0 +1,19 @@
+FROM node:14.21.3-bullseye-slim
+ARG userid=1000
+ARG groupid=1000
+
+RUN if ! cat /etc/passwd | grep ":$userid:" > /dev/null; then addgroup --gid $groupid dev && useradd --home-dir /home/dev --shell /bin/bash --uid $userid --gid $groupid dev; fi
+
+EXPOSE 3000
+
+RUN apt-get update && apt-get -y install g++ build-essential python3 curl git
+
+USER $userid
+
+RUN mkdir -p ~/bin
+
+RUN curl https://install.meteor.com/ | sh
+
+RUN ln -s ~/.meteor/meteor ~/bin
+
+ENTRYPOINT ["/bin/bash"]
