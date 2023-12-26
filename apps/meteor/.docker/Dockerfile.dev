@@ -6,7 +6,7 @@ RUN if ! cat /etc/passwd | grep ":$userid:" > /dev/null; then addgroup --gid $gr
 
 EXPOSE 3000
 
-RUN apt-get update && apt-get -y install g++ build-essential python3 curl git
+RUN apt-get update && apt-get -y install g++ build-essential python3 curl git procps
 
 USER $userid
 
@@ -16,4 +16,4 @@ RUN curl https://install.meteor.com/ | sh
 
 RUN ln -s ~/.meteor/meteor ~/bin
 
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["/bin/bash", "--login"]
