@@ -19,7 +19,7 @@ export class VideoHandler extends UploadHandler {
 	}
 
     public async processAttachment(file: PostFileData, fields: PostFields): Promise<IMessage | null> {
-        this.sendConversionMessage();
+        await this.sendConversionMessage();
         return this.convert(file).then(async (fileModified) => {
             const fileStoreResult = await this.insertIntoFileStore(fileModified, fields);
 		    Uploads.updateFileComplete(fileStoreResult._id, this.uid, _.omit(fileStoreResult, '_id'));
@@ -38,7 +38,7 @@ export class VideoHandler extends UploadHandler {
             return this.sendAttachmentMessage(fileStoreResult, attachments);
         })
 		.then((_) => this.getConversionMessage() ?? null)
-		.catch((error) => {
+		.catch(async (error) => {
 			// Verify if the error is from Handbrake.
 			// Investigation: I was not able to use handbrake.HandbrakeErrors because it is not an object at runtime.
 			if (error.name === "ValidationError" ||
@@ -47,11 +47,11 @@ export class VideoHandler extends UploadHandler {
 				error.name === "Other" ||
 				error.name === "HandbrakeCLINotFound") {
 				UploadHandler.logger.info("Handbrake error. " + error.message);
-				this.showErrorInAttachment("La conversion du vidéo a échouée.", 10000);
+				await this.showErrorInAttachment("La conversion du vidéo a échouée.", 10000);
 			}
 			else {
 				UploadHandler.logger.error("Unknown conversion error. " + error.toString());
-				this.showErrorInAttachment("Erreur inconnue lors de la conversion vidéo.", 10000);
+				await this.showErrorInAttachment("Erreur inconnue lors de la conversion vidéo.", 10000);
 			}
 			return null;
 		});
