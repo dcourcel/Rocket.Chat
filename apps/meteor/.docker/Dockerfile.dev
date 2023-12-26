@@ -6,7 +6,9 @@ RUN if ! cat /etc/passwd | grep ":$userid:" > /dev/null; then addgroup --gid $gr
 
 EXPOSE 3000
 
-RUN apt-get update && apt-get -y install g++ build-essential python3 curl git procps
+RUN apt-get update && apt-get -y install g++ build-essential python3 curl git procps handbrake-cli
+
+RUN cd ~ && curl -s -o mongodb-mongosh_2.1.1_amd64.deb https://downloads.mongodb.com/compass/mongodb-mongosh_2.1.1_amd64.deb && dpkg --install mongodb-mongosh_2.1.1_amd64.deb && rm mongodb-mongosh_2.1.1_amd64.deb
 
 USER $userid
 
