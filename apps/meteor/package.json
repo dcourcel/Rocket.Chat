@@ -1,7 +1,7 @@
 {
 	"name": "@rocket.chat/meteor",
 	"description": "The Ultimate Open Source WebChat Platform",
-	"version": "6.4.3",
+	"version": "6.4.8",
 	"private": true,
 	"author": {
 		"name": "Rocket.Chat",
@@ -234,8 +234,8 @@
 		"@rocket.chat/css-in-js": "next",
 		"@rocket.chat/emitter": "next",
 		"@rocket.chat/favicon": "workspace:^",
-		"@rocket.chat/forked-matrix-appservice-bridge": "^4.0.1",
-		"@rocket.chat/forked-matrix-bot-sdk": "^0.6.0-beta.2",
+		"@rocket.chat/forked-matrix-appservice-bridge": "^4.0.2",
+		"@rocket.chat/forked-matrix-bot-sdk": "^0.6.0-beta.3",
 		"@rocket.chat/fuselage": "^0.33.0",
 		"@rocket.chat/fuselage-hooks": "next",
 		"@rocket.chat/fuselage-polyfills": "next",
@@ -407,7 +407,7 @@
 		"redis": "^4.0.6",
 		"sanitize-html": "^2.7.2",
 		"semver": "^7.3.7",
-		"sharp": "^0.30.7",
+		"sharp": "^0.32.6",
 		"sip.js": "^0.20.1",
 		"sodium-native": "^3.3.0",
 		"sodium-plus": "^0.9.0",

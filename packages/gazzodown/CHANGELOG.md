@@ -1,5 +1,45 @@
 # @rocket.chat/gazzodown
 
+## 2.0.8
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.8
+- @rocket.chat/ui-contexts@2.0.8
+- @rocket.chat/ui-client@2.0.8
+
+## 2.0.7
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.7
+- @rocket.chat/ui-contexts@2.0.7
+- @rocket.chat/ui-client@2.0.7
+
+## 2.0.6
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.6
+- @rocket.chat/ui-contexts@2.0.6
+- @rocket.chat/ui-client@2.0.6
+
+## 2.0.5
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.5
+- @rocket.chat/ui-contexts@2.0.5
+- @rocket.chat/ui-client@2.0.5
+
+## 2.0.4
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.4
+- @rocket.chat/ui-contexts@2.0.4
+- @rocket.chat/ui-client@2.0.4
+
 ## 2.0.3
 
 ### Patch Changes

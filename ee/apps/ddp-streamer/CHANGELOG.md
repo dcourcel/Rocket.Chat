@@ -1,5 +1,65 @@
 # @rocket.chat/ddp-streamer
 
+## 0.1.17
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.8
+- @rocket.chat/rest-typings@6.4.8
+- @rocket.chat/core-services@0.2.8
+- @rocket.chat/model-typings@0.1.8
+- @rocket.chat/ui-contexts@2.0.8
+- @rocket.chat/models@0.0.23
+- @rocket.chat/instance-status@0.0.23
+
+## 0.1.16
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.7
+- @rocket.chat/rest-typings@6.4.7
+- @rocket.chat/core-services@0.2.7
+- @rocket.chat/model-typings@0.1.7
+- @rocket.chat/ui-contexts@2.0.7
+- @rocket.chat/models@0.0.22
+- @rocket.chat/instance-status@0.0.22
+
+## 0.1.15
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.6
+- @rocket.chat/rest-typings@6.4.6
+- @rocket.chat/core-services@0.2.6
+- @rocket.chat/model-typings@0.1.6
+- @rocket.chat/ui-contexts@2.0.6
+- @rocket.chat/models@0.0.21
+- @rocket.chat/instance-status@0.0.21
+
+## 0.1.14
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.5
+- @rocket.chat/rest-typings@6.4.5
+- @rocket.chat/core-services@0.2.5
+- @rocket.chat/model-typings@0.1.5
+- @rocket.chat/ui-contexts@2.0.5
+- @rocket.chat/models@0.0.20
+- @rocket.chat/instance-status@0.0.20
+
+## 0.1.13
+
+### Patch Changes
+
+- @rocket.chat/core-typings@6.4.4
+- @rocket.chat/rest-typings@6.4.4
+- @rocket.chat/core-services@0.2.4
+- @rocket.chat/model-typings@0.1.4
+- @rocket.chat/ui-contexts@2.0.4
+- @rocket.chat/models@0.0.19
+- @rocket.chat/instance-status@0.0.19
+
 ## 0.1.12
 
 ### Patch Changes
