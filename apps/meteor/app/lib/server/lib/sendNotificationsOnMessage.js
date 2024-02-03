@@ -1,3 +1,4 @@
+import { Room } from '@rocket.chat/core-services';
 import { Subscriptions, Users } from '@rocket.chat/models';
 import { Meteor } from 'meteor/meteor';
 import moment from 'moment';
@@ -7,12 +8,7 @@ import { roomCoordinator } from '../../../../server/lib/rooms/roomCoordinator';
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { Notification } from '../../../notification-queue/server/NotificationQueue';
 import { settings } from '../../../settings/server';
-import {
-	callJoinRoom,
-	messageContainsHighlight,
-	parseMessageTextPerUser,
-	replaceMentionedUsernamesWithFullNames,
-} from '../functions/notifications';
+import { messageContainsHighlight, parseMessageTextPerUser, replaceMentionedUsernamesWithFullNames } from '../functions/notifications';
 import { notifyDesktopUser, shouldNotifyDesktop } from '../functions/notifications/desktop';
 import { getEmailData, shouldNotifyEmail } from '../functions/notifications/email';
 import { getPushData, shouldNotifyMobile } from '../functions/notifications/mobile';
@@ -52,12 +48,13 @@ export const sendNotification = async ({
 		subscription.receiver = [
 			await Users.findOneById(subscription.u._id, {
 				projection: {
-					active: 1,
-					emails: 1,
-					language: 1,
-					status: 1,
-					statusConnection: 1,
-					username: 1,
+					'active': 1,
+					'emails': 1,
+					'language': 1,
+					'status': 1,
+					'statusConnection': 1,
+					'username': 1,
+					'settings.preferences.enableMobileRinging': 1,
 				},
 			}),
 		];
@@ -72,6 +69,7 @@ export const sendNotification = async ({
 	}
 
 	const isThread = !!message.tmid && !message.tshow;
+	const isVideoConf = message.t === 'videoconf';
 
 	notificationMessage = await parseMessageTextPerUser(notificationMessage, message, receiver);
 
@@ -116,6 +114,9 @@ export const sendNotification = async ({
 			hasReplyToThread,
 			roomType,
 			isThread,
+			isVideoConf,
+			userPreferences: receiver.settings?.preferences,
+			roomUids: room.uids,
 		})
 	) {
 		queueItems.push({
@@ -193,6 +194,7 @@ const project = {
 		'receiver.status': 1,
 		'receiver.statusConnection': 1,
 		'receiver.username': 1,
+		'receiver.settings.preferences.enableMobileRinging': 1,
 	},
 };
 
@@ -365,7 +367,7 @@ export async function sendAllNotifications(message, room) {
 
 		const users = await Promise.all(
 			mentions.map(async (userId) => {
-				await callJoinRoom(userId, room._id);
+				await Room.join({ room, user: { _id: userId } });
 
 				return userId;
 			}),
