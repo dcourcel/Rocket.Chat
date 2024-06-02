@@ -1,4 +1,4 @@
-import { Component } from 'preact';
+import { Component, createRef } from 'preact';
 import { Suspense, lazy } from 'preact/compat';
 import { withTranslation } from 'react-i18next';
 
@@ -35,6 +35,8 @@ class Chat extends Component {
 		emojiPickerActive: false,
 	};
 
+	inputRef = createRef(null);
+
 	handleFilesDropTargetRef = (ref) => {
 		this.filesDropTarget = ref;
 	};
@@ -61,7 +63,7 @@ class Chat extends Component {
 
 	handleUploadClick = (event) => {
 		event.preventDefault();
-		this.filesDropTarget.browse();
+		this.inputRef?.current?.click();
 	};
 
 	handleSendClick = (event) => {
@@ -108,9 +110,7 @@ class Chat extends Component {
 
 	render = (
 		{
-			color,
 			title,
-			fontColor,
 			uid,
 			agent,
 			typingUsernames,
@@ -133,14 +133,13 @@ class Chat extends Component {
 			incomingCallAlert,
 			ongoingCall,
 			dispatch,
+			theme,
 			...props
 		},
 		{ atBottom = true, text },
 	) => (
 		<Screen
-			color={color}
 			title={title || t('need_help')}
-			fontColor={fontColor}
 			agent={agent || null}
 			queueInfo={queueInfo}
 			nopadding
@@ -149,9 +148,10 @@ class Chat extends Component {
 			onRemoveUserData={onRemoveUserData}
 			className={createClassName(styles, 'chat')}
 			handleEmojiClick={this.handleEmojiClick}
+			theme={theme}
 			{...props}
 		>
-			<FilesDropTarget ref={this.handleFilesDropTargetRef} overlayed overlayText={t('drop_here_to_upload_a_file')} onUpload={onUpload}>
+			<FilesDropTarget inputRef={this.inputRef} overlayed overlayText={t('drop_here_to_upload_a_file')} onUpload={onUpload}>
 				<Screen.Content nopadding>
 					{incomingCallAlert && !!incomingCallAlert.show && <CallNotification {...incomingCallAlert} dispatch={dispatch} />}
 					{incomingCallAlert?.show && ongoingCall && ongoingCall.callStatus === CallStatus.IN_PROGRESS_SAME_TAB ? (
@@ -166,9 +166,11 @@ class Chat extends Component {
 							typingUsernames={typingUsernames}
 							conversationFinishedMessage={conversationFinishedMessage}
 							lastReadMessageId={lastReadMessageId}
-							onScrollTo={this.handleScrollTo}
 							handleEmojiClick={this.handleEmojiClick}
 							dispatch={dispatch}
+							hideSenderAvatar={theme.hideGuestAvatar}
+							hideReceiverAvatar={theme.hideAgentAvatar}
+							onScrollTo={this.handleScrollTo}
 						/>
 						{this.state.emojiPickerActive && (
 							<Suspense fallback={null}>

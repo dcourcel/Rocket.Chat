@@ -1,5 +1,7 @@
 import { faker } from '@faker-js/faker';
+import type { Page } from '@playwright/test';
 
+import { createAuxContext } from './fixtures/createAuxContext';
 import injectInitialData from './fixtures/inject-initial-data';
 import { Users, storeState, restoreState } from './fixtures/userStates';
 import { AccountProfile, HomeChannel } from './page-objects';
@@ -31,13 +33,13 @@ test.describe.serial('e2e-encryption initial setup', () => {
 	test.beforeAll(async ({ api }) => {
 		const statusCode = (await api.post('/settings/E2E_Enable', { value: true })).status();
 
-		await expect(statusCode).toBe(200);
+		expect(statusCode).toBe(200);
 	});
 
 	test.afterAll(async ({ api }) => {
 		const statusCode = (await api.post('/settings/E2E_Enable', { value: false })).status();
 
-		await expect(statusCode).toBe(200);
+		expect(statusCode).toBe(200);
 	});
 
 	test.afterEach(async ({ api }) => {
@@ -63,7 +65,7 @@ test.describe.serial('e2e-encryption initial setup', () => {
 
 		await expect(page.locator('#modal-root')).toContainText(password);
 
-		await page.locator('#modal-root .rcx-button--primary').click();
+		await page.locator('#modal-root .rcx-button-group--align-end .rcx-button--primary').click();
 
 		await expect(page.locator('role=banner >> text="Save your encryption password"')).not.toBeVisible();
 
@@ -131,10 +133,9 @@ test.describe.serial('e2e-encryption', () => {
 	test.beforeEach(async ({ page, api }) => {
 		const statusCode = (await api.post('/settings/E2E_Enable', { value: true })).status();
 
-		await expect(statusCode).toBe(200);
+		expect(statusCode).toBe(200);
 
 		poHomeChannel = new HomeChannel(page);
-
 		await page.goto('/home');
 	});
 
@@ -154,8 +155,7 @@ test.describe.serial('e2e-encryption', () => {
 
 		await expect(page).toHaveURL(`/group/${channelName}`);
 
-		await poHomeChannel.toastSuccess.locator('button >> i.rcx-icon--name-cross.rcx-icon').click();
-		await page.mouse.move(0, 0);
+		await poHomeChannel.dismissToast();
 
 		await expect(poHomeChannel.content.encryptedRoomHeaderIcon).toBeVisible();
 
@@ -168,6 +168,7 @@ test.describe.serial('e2e-encryption', () => {
 
 		await expect(poHomeChannel.tabs.btnDisableE2E).toBeVisible();
 		await poHomeChannel.tabs.btnDisableE2E.click({ force: true });
+		await poHomeChannel.dismissToast();
 		await page.waitForTimeout(1000);
 
 		await poHomeChannel.content.sendMessage('hello world not encrypted');
@@ -178,6 +179,7 @@ test.describe.serial('e2e-encryption', () => {
 		await poHomeChannel.tabs.kebab.click({ force: true });
 		await expect(poHomeChannel.tabs.btnEnableE2E).toBeVisible();
 		await poHomeChannel.tabs.btnEnableE2E.click({ force: true });
+		await poHomeChannel.dismissToast();
 		await page.waitForTimeout(1000);
 
 		await poHomeChannel.content.sendMessage('hello world encrypted again');
@@ -197,7 +199,7 @@ test.describe.serial('e2e-encryption', () => {
 
 		await expect(poHomeChannel.toastSuccess).toBeVisible();
 
-		await poHomeChannel.toastSuccess.locator('button >> i.rcx-icon--name-cross.rcx-icon').click();
+		await poHomeChannel.dismissToast();
 
 		await poHomeChannel.tabs.kebab.click({ force: true });
 		await expect(poHomeChannel.tabs.btnEnableE2E).toBeVisible();
@@ -210,5 +212,76 @@ test.describe.serial('e2e-encryption', () => {
 
 		await expect(poHomeChannel.content.lastUserMessageBody).toHaveText('hello world');
 		await expect(poHomeChannel.content.lastUserMessage.locator('.rcx-icon--name-key')).toBeVisible();
+	});
+
+	test('expect placeholder text in place of encrypted message, when E2EE is not setup', async ({ page }) => {
+		const channelName = faker.string.uuid();
+
+		await poHomeChannel.sidenav.openNewByLabel('Channel');
+		await poHomeChannel.sidenav.inputChannelName.fill(channelName);
+		await poHomeChannel.sidenav.checkboxEncryption.click();
+		await poHomeChannel.sidenav.btnCreate.click();
+
+		await expect(page).toHaveURL(`/group/${channelName}`);
+
+		await poHomeChannel.dismissToast();
+
+		await expect(poHomeChannel.content.encryptedRoomHeaderIcon).toBeVisible();
+
+		await poHomeChannel.content.sendMessage('This is an encrypted message.');
+
+		await expect(poHomeChannel.content.lastUserMessageBody).toHaveText('This is an encrypted message.');
+		await expect(poHomeChannel.content.lastUserMessage.locator('.rcx-icon--name-key')).toBeVisible();
+
+		// Logout to remove e2ee keys
+		await poHomeChannel.sidenav.logout();
+
+		// Login again
+		await page.locator('role=button[name="Login"]').waitFor();
+		await injectInitialData();
+		await restoreState(page, Users.admin, { except: ['private_key', 'public_key'] });
+
+		await poHomeChannel.sidenav.openChat(channelName);
+
+		await expect(poHomeChannel.content.encryptedRoomHeaderIcon).toBeVisible();
+
+		await expect(poHomeChannel.content.lastUserMessage).toContainText(
+			'This message is end-to-end encrypted. To view it, you must enter your encryption key in your account settings.',
+		);
+		await expect(poHomeChannel.content.lastUserMessage.locator('.rcx-icon--name-key')).toBeVisible();
+	});
+
+	test.describe('reset keys', () => {
+		let anotherClientPage: Page;
+
+		test.beforeEach(async ({ browser }) => {
+			anotherClientPage = (await createAuxContext(browser, Users.admin)).page;
+		});
+
+		test.afterEach(async () => {
+			await anotherClientPage.close();
+		});
+		test.afterAll(async () => {
+			// inject initial data, so that tokens are restored after forced logout
+			await injectInitialData();
+		});
+
+		test('expect force logout on e2e keys reset', async ({ page }) => {
+			const poAccountProfile = new AccountProfile(page);
+			// creating another logged in client, to check force logout
+
+			await page.goto('/account/security');
+
+			await poAccountProfile.securityE2EEncryptionSection.click();
+			await poAccountProfile.securityE2EEncryptionResetKeyButton.click();
+
+			await expect(page.locator('role=button[name="Login"]')).toBeVisible();
+			await expect(anotherClientPage.locator('role=button[name="Login"]')).toBeVisible();
+
+			// await expect(page.locator('role=banner')).toContainText('Your session was ended on this device, please log in again to continue.');
+			// await expect(anotherClientPage.locator('role=banner')).toContainText(
+			// 	'Your session was ended on this device, please log in again to continue.',
+			// );
+		});
 	});
 });

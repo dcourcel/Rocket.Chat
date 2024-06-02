@@ -4,7 +4,6 @@ export * from './FeaturedApps';
 export * from './AppRequests';
 export * from './MarketplaceRest';
 export * from './IRoom';
-export * from './UIKit';
 export * from './IMessage';
 export * from './federation';
 export * from './Serialized';
@@ -18,7 +17,9 @@ export * from './UserStatus';
 export * from './IUserAction';
 export * from './IBanner';
 export * from './IStats';
+export * from './IMatrixFederationStatistics';
 export * from './IServerInfo';
+export * from './IWorkspaceInfo';
 export * from './IInstanceStatus';
 export * from './IWebdavAccount';
 export * from './IPermission';
@@ -33,13 +34,13 @@ export * from './IRocketChatAssets';
 export * from './IPushToken';
 export * from './IPushNotificationConfig';
 export * from './SlashCommands';
+export * from './license';
 
 export * from './IUserDataFile';
 export * from './IUserSession';
 export * from './IUserStatus';
 export * from './IUser';
 
-export * from './ee/ILicense/ILicense';
 export * from './ee/IAuditLog';
 
 export * from './import';
@@ -135,3 +136,5 @@ export * from './ICustomOAuthConfig';
 
 export * from './IModerationReport';
 export * from './CustomFieldMetadata';
+
+export * as Cloud from './cloud';
