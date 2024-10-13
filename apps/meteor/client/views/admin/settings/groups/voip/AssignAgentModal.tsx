@@ -1,20 +1,19 @@
-import { Button, Modal, Select, Field, FieldGroup, Box } from '@rocket.chat/fuselage';
+import { Button, Modal, Select, Field, FieldGroup, FieldLabel, FieldRow, Box } from '@rocket.chat/fuselage';
 import { useMutableCallback } from '@rocket.chat/fuselage-hooks';
 import { useToastMessageDispatch, useEndpoint, useTranslation } from '@rocket.chat/ui-contexts';
-import type { FC } from 'react';
 import React, { useState, useMemo } from 'react';
 
 import AutoCompleteAgentWithoutExtension from '../../../../../components/AutoCompleteAgentWithoutExtension';
 import { AsyncStatePhase } from '../../../../../hooks/useAsyncState';
 import { useEndpointData } from '../../../../../hooks/useEndpointData';
 
-type AssignAgentModalParams = {
+type AssignAgentModalProps = {
 	closeModal: () => void;
 	reload: () => void;
 	existingExtension?: string;
 };
 
-const AssignAgentModal: FC<AssignAgentModalParams> = ({ existingExtension, closeModal, reload }) => {
+const AssignAgentModal = ({ existingExtension, closeModal, reload }: AssignAgentModalProps) => {
 	const t = useTranslation();
 	const dispatchToastMessage = useToastMessageDispatch();
 	const [agent, setAgent] = useState('');
@@ -46,14 +45,14 @@ const AssignAgentModal: FC<AssignAgentModalParams> = ({ existingExtension, close
 			<Modal.Content>
 				<FieldGroup>
 					<Field>
-						<Field.Label>{t('Agent_Without_Extensions')}</Field.Label>
-						<Field.Row>
+						<FieldLabel>{t('Agent_Without_Extensions')}</FieldLabel>
+						<FieldRow>
 							<AutoCompleteAgentWithoutExtension value={agent} onChange={handleAgentChange} currentExtension={extension} />
-						</Field.Row>
+						</FieldRow>
 					</Field>
 					<Field>
-						<Field.Label>{t('Free_Extension_Numbers')}</Field.Label>
-						<Field.Row>
+						<FieldLabel>{t('Free_Extension_Numbers')}</FieldLabel>
+						<FieldRow>
 							<Select
 								disabled={state === AsyncStatePhase.LOADING || agent === ''}
 								options={availableExtensions?.extensions?.map((extension) => [extension, extension]) || []}
@@ -61,7 +60,7 @@ const AssignAgentModal: FC<AssignAgentModalParams> = ({ existingExtension, close
 								placeholder={t('Select_an_option')}
 								onChange={(value) => setExtension(String(value))}
 							/>
-						</Field.Row>
+						</FieldRow>
 					</Field>
 				</FieldGroup>
 			</Modal.Content>

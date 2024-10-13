@@ -1,13 +1,15 @@
 import { ServiceClassInternal, Message } from '@rocket.chat/core-services';
 import type { IOmnichannelEEService } from '@rocket.chat/core-services';
-import { isOmnichannelRoom } from '@rocket.chat/core-typings';
+import { isOmnichannelRoom, LivechatInquiryStatus } from '@rocket.chat/core-typings';
 import type { IOmnichannelRoom, IUser, ILivechatInquiryRecord, IOmnichannelSystemMessage } from '@rocket.chat/core-typings';
 import { Logger } from '@rocket.chat/logger';
 import { LivechatRooms, Subscriptions, LivechatInquiry } from '@rocket.chat/models';
 
+import { notifyOnLivechatInquiryChangedById, notifyOnRoomChangedById } from '../../../../../app/lib/server/lib/notifyListener';
 import { dispatchAgentDelegated } from '../../../../../app/livechat/server/lib/Helper';
 import { queueInquiry } from '../../../../../app/livechat/server/lib/QueueManager';
 import { RoutingManager } from '../../../../../app/livechat/server/lib/RoutingManager';
+import { settings } from '../../../../../app/settings/server';
 import { callbacks } from '../../../../../lib/callbacks';
 
 export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelEEService {
@@ -40,8 +42,12 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 		if (room.onHold) {
 			throw new Error('error-room-is-already-on-hold');
 		}
-		if (room.lastMessage?.token) {
-			throw new Error('error-contact-sent-last-message-so-cannot-place-on-hold');
+		const restrictedOnHold = settings.get('Livechat_allow_manual_on_hold_upon_agent_engagement_only');
+		const canRoomBePlacedOnHold = !room.onHold;
+		const canAgentPlaceOnHold = !room.lastMessage?.token;
+		const canPlaceChatOnHold = canRoomBePlacedOnHold && (!restrictedOnHold || canAgentPlaceOnHold);
+		if (!canPlaceChatOnHold) {
+			throw new Error('error-cannot-place-chat-on-hold');
 		}
 		if (!room.servedBy) {
 			throw new Error('error-unserved-rooms-cannot-be-placed-onhold');
@@ -55,7 +61,7 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 
 		await callbacks.run('livechat:afterOnHold', room);
 
-		this.logger.debug(`Room ${room._id} set on hold successfully`);
+		void notifyOnRoomChangedById(roomId);
 	}
 
 	async resumeRoomOnHold(
@@ -106,7 +112,7 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 
 		await callbacks.run('livechat:afterOnHoldChatResumed', room);
 
-		this.logger.debug(`Room ${room._id} resumed successfully`);
+		void notifyOnRoomChangedById(roomId);
 	}
 
 	private async attemptToAssignRoomToServingAgentElseQueueIt({
@@ -134,7 +140,7 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 
 			return;
 		} catch (e) {
-			this.logger.debug(`Agent ${servingAgent._id} is not available to take the inquiry ${inquiry._id}`, e);
+			this.logger.error(`Agent ${servingAgent._id} is not available to take the inquiry ${inquiry._id}`, e);
 			if (clientAction) {
 				// if the action was triggered by the client, we should throw the error
 				// so the client can handle it and show the error message to the user
@@ -142,20 +148,15 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 			}
 		}
 
-		this.logger.debug(`Attempting to queue inquiry ${inquiry._id}`);
-
 		await this.removeCurrentAgentFromRoom({ room, inquiry });
 
 		const { _id: inquiryId } = inquiry;
 		const newInquiry = await LivechatInquiry.findOneById(inquiryId);
 
 		if (!newInquiry) {
-			this.logger.error(`No inquiry found for id ${inquiryId}`);
 			throw new Error('error-invalid-inquiry');
 		}
 		await queueInquiry(newInquiry);
-
-		this.logger.debug('Room queued successfully');
 	}
 
 	private async removeCurrentAgentFromRoom({
@@ -177,8 +178,15 @@ export class OmnichannelEE extends ServiceClassInternal implements IOmnichannelE
 			RoutingManager.removeAllRoomSubscriptions(room),
 		]);
 
+		void notifyOnLivechatInquiryChangedById(inquiryId, 'updated', {
+			status: LivechatInquiryStatus.QUEUED,
+			queuedAt: new Date(),
+			takenAt: undefined,
+			defaultAgent: undefined,
+		});
+
 		await dispatchAgentDelegated(roomId);
 
-		this.logger.debug(`Current agent removed from room ${room._id} successfully`);
+		void notifyOnRoomChangedById(roomId);
 	}
 }

@@ -1,21 +1,28 @@
 import { expect } from 'chai';
-import { before, describe, it } from 'mocha';
+import { after, before, describe, it } from 'mocha';
 
+import { sleep } from '../../../../lib/utils/sleep';
 import { getCredentials, api, request, credentials } from '../../../data/api-data';
 import { createCustomField, deleteCustomField } from '../../../data/livechat/custom-fields';
 import { addOrRemoveAgentFromDepartment, createDepartmentWithAnOnlineAgent } from '../../../data/livechat/department';
-import { createVisitor, createLivechatRoom, makeAgentUnavailable, closeOmnichannelRoom } from '../../../data/livechat/rooms';
+import {
+	createVisitor,
+	createLivechatRoom,
+	makeAgentUnavailable,
+	closeOmnichannelRoom,
+	sendMessage,
+	deleteVisitor,
+} from '../../../data/livechat/rooms';
 import { createBotAgent, getRandomVisitorToken } from '../../../data/livechat/users';
 import { removePermissionFromAllRoles, restorePermissionToRoles, updatePermission, updateSetting } from '../../../data/permissions.helper';
 import { IS_EE } from '../../../e2e/config/constants';
 
-describe('LIVECHAT - Utils', function () {
-	this.retries(0);
-
+describe('LIVECHAT - Utils', () => {
 	before((done) => getCredentials(done));
 
-	before(async () => {
+	after(async () => {
 		await updateSetting('Livechat_enabled', true);
+		await updateSetting('Livechat_offline_email', '');
 	});
 
 	describe('livechat/offline.message', () => {
@@ -107,7 +114,7 @@ describe('LIVECHAT - Utils', function () {
 		(IS_EE ? it : it.skip)('should return online as true if there is at least one agent online', async () => {
 			const { department } = await createDepartmentWithAnOnlineAgent();
 
-			const { body } = await request.get(api(`livechat/config?department=${department._id}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ department: department._id }).set(credentials);
 			expect(body).to.have.property('config');
 			expect(body.config).to.have.property('online', true);
 		});
@@ -115,7 +122,7 @@ describe('LIVECHAT - Utils', function () {
 			const { department, agent } = await createDepartmentWithAnOnlineAgent();
 			await makeAgentUnavailable(agent.credentials);
 
-			const { body } = await request.get(api(`livechat/config?department=${department._id}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ department: department._id }).set(credentials);
 			expect(body).to.have.property('config');
 			expect(body.config).to.have.property('online', false);
 		});
@@ -128,7 +135,7 @@ describe('LIVECHAT - Utils', function () {
 			const botUser = await createBotAgent();
 			await addOrRemoveAgentFromDepartment(department._id, { agentId: botUser.user._id, username: botUser.user.username as string }, true);
 
-			const { body } = await request.get(api(`livechat/config?department=${department._id}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ department: department._id }).set(credentials);
 			expect(body).to.have.property('config');
 
 			await updateSetting('Livechat_assign_new_conversation_to_bot', false);
@@ -136,7 +143,7 @@ describe('LIVECHAT - Utils', function () {
 		});
 		it('should return a guest if there exists a guest with the same token', async () => {
 			const guest = await createVisitor();
-			const { body } = await request.get(api(`livechat/config?token=${guest.token}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ token: guest.token }).set(credentials);
 			expect(body).to.have.property('config');
 			expect(body.config).to.have.property('guest');
 			expect(body.config.guest).to.have.property('name', guest.name);
@@ -144,13 +151,13 @@ describe('LIVECHAT - Utils', function () {
 		it('should not return a guest if there exists a guest with the same token but the guest is not online', async () => {
 			const token = getRandomVisitorToken();
 
-			const { body } = await request.get(api(`livechat/config?token=${token}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ token }).set(credentials);
 			expect(body).to.have.property('config');
 			expect(body.config).to.not.have.property('guest');
 		});
 		it('should return no online room if visitor is not chatting with an agent', async () => {
 			const visitor = await createVisitor();
-			const { body } = await request.get(api(`livechat/config?token=${visitor.token}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ token: visitor.token }).set(credentials);
 			expect(body).to.have.property('config');
 			expect(body.config).to.not.have.property('room');
 		});
@@ -158,7 +165,7 @@ describe('LIVECHAT - Utils', function () {
 			const newVisitor = await createVisitor();
 			const newRoom = await createLivechatRoom(newVisitor.token);
 
-			const { body } = await request.get(api(`livechat/config?token=${newVisitor.token}`)).set(credentials);
+			const { body } = await request.get(api('livechat/config')).query({ token: newVisitor.token }).set(credentials);
 
 			expect(body).to.have.property('config');
 			expect(body.config).to.have.property('room');
@@ -219,6 +226,7 @@ describe('LIVECHAT - Utils', function () {
 			expect(body.page).to.have.property('msg');
 		});
 	});
+
 	describe('livechat/transcript', () => {
 		it('should fail if token is not in body params', async () => {
 			const { body } = await request.post(api('livechat/transcript')).set(credentials).send({});
@@ -276,6 +284,7 @@ describe('LIVECHAT - Utils', function () {
 			expect(body).to.have.property('success', true);
 		});
 	});
+
 	describe('livechat/transcript/:rid', () => {
 		it('should fail if user is not authenticated', async () => {
 			await request.delete(api('livechat/transcript/rid')).send({}).expect(401);
@@ -448,6 +457,320 @@ describe('LIVECHAT - Utils', function () {
 			expect(body).to.have.property('success', true);
 			expect(body).to.have.property('callStatus', 'going');
 			expect(body).to.have.property('token', visitor.token);
+		});
+	});
+	describe('livechat/visitors.search', () => {
+		it('should bring sorted data by last chat time', async () => {
+			const visitor1 = await createVisitor(undefined, 'VisitorInPast');
+			const room1 = await createLivechatRoom(visitor1.token);
+
+			const visitor2 = await createVisitor(undefined, 'VisitorInPresent');
+			const room2 = await createLivechatRoom(visitor2.token);
+
+			const { body: result1 } = await request
+				.get(api('livechat/visitors.search'))
+				.query({ term: 'VisitorIn', sort: '{"lastChat.ts":1}' })
+				.set(credentials)
+				.send();
+
+			expect(result1).to.have.property('visitors').that.is.an('array');
+			expect(result1.visitors[0]).to.have.property('name');
+			expect(result1.visitors[0].name).to.be.eq('VisitorInPast');
+
+			const { body: result2 } = await request
+				.get(api('livechat/visitors.search'))
+				.query({ term: 'VisitorIn', sort: '{"lastChat.ts":-1}' })
+				.set(credentials)
+				.send();
+
+			expect(result2).to.have.property('visitors').that.is.an('array');
+			expect(result2.visitors[0]).to.have.property('name');
+			expect(result2.visitors[0].name).to.be.eq('VisitorInPresent');
+
+			await closeOmnichannelRoom(room1._id);
+			await closeOmnichannelRoom(room2._id);
+			await deleteVisitor(visitor1.token);
+			await deleteVisitor(visitor2.token);
+		});
+	});
+
+	describe('livechat/message', () => {
+		it('should fail if no token', async () => {
+			await request.post(api('livechat/message')).set(credentials).send({}).expect(400);
+		});
+		it('should fail if no rid', async () => {
+			await request.post(api('livechat/message')).set(credentials).send({ token: 'test' }).expect(400);
+		});
+		it('should fail if no msg', async () => {
+			await request.post(api('livechat/message')).set(credentials).send({ token: 'test', rid: 'test' }).expect(400);
+		});
+		it('should fail if token is invalid', async () => {
+			await request.post(api('livechat/message')).set(credentials).send({ token: 'test', rid: 'test', msg: 'test' }).expect(400);
+		});
+		it('should fail if rid is invalid', async () => {
+			const visitor = await createVisitor();
+			await request.post(api('livechat/message')).set(credentials).send({ token: visitor.token, rid: 'test', msg: 'test' }).expect(400);
+		});
+		it('should fail if rid belongs to another visitor', async () => {
+			const visitor = await createVisitor();
+			const visitor2 = await createVisitor();
+			const room = await createLivechatRoom(visitor2.token);
+			await request.post(api('livechat/message')).set(credentials).send({ token: visitor.token, rid: room._id, msg: 'test' }).expect(400);
+		});
+		it('should fail if room is closed', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await closeOmnichannelRoom(room._id);
+			await request.post(api('livechat/message')).set(credentials).send({ token: visitor.token, rid: room._id, msg: 'test' }).expect(400);
+		});
+		it('should fail if message is greater than Livechat_enable_message_character_limit setting', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await updateSetting('Livechat_enable_message_character_limit', true);
+			await updateSetting('Livechat_message_character_limit', 1);
+			await request.post(api('livechat/message')).set(credentials).send({ token: visitor.token, rid: room._id, msg: 'test' }).expect(400);
+
+			await updateSetting('Livechat_enable_message_character_limit', false);
+		});
+		it('should send a message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await request.post(api('livechat/message')).set(credentials).send({ token: visitor.token, rid: room._id, msg: 'test' }).expect(200);
+		});
+	});
+
+	describe('[GET] livechat/message/:_id', () => {
+		it('should fail if no token is provided', async () => {
+			await request.get(api('livechat/message/rid')).set(credentials).expect(400);
+		});
+		it('should fail if no rid is provided', async () => {
+			await request.get(api('livechat/message/mid')).query({ token: 'test' }).expect(400);
+		});
+		it('should fail if token points to an invalid visitor', async () => {
+			await request.get(api('livechat/message/mid')).query({ token: 'test', rid: 'test' }).expect(400);
+		});
+		it('should fail if room points to an invalid room', async () => {
+			const visitor = await createVisitor();
+			await request.get(api('livechat/message/mid')).query({ token: visitor.token, rid: 'test' }).expect(400);
+		});
+		it('should fail if _id points to an invalid message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await request.get(api('livechat/message/mid')).query({ token: visitor.token, rid: room._id }).expect(400);
+		});
+		it('should return a message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			const message = await sendMessage(room._id, 'test', visitor.token);
+			await request
+				.get(api(`livechat/message/${message._id}`))
+				.query({ token: visitor.token, rid: room._id })
+				.expect(200);
+		});
+	});
+
+	describe('[PUT] livechat/message/:_id', () => {
+		it('should fail if no token is provided', async () => {
+			await request.put(api('livechat/message/rid')).set(credentials).expect(400);
+		});
+		it('should fail if no rid is provided', async () => {
+			await request.put(api('livechat/message/mid')).query({ token: 'test' }).expect(400);
+		});
+		it('should fail if token points to an invalid visitor', async () => {
+			await request.put(api('livechat/message/mid')).query({ token: 'test', rid: 'test' }).expect(400);
+		});
+		it('should fail if room points to an invalid room', async () => {
+			const visitor = await createVisitor();
+			await request.put(api('livechat/message/mid')).query({ token: visitor.token, rid: 'test' }).expect(400);
+		});
+		it('should fail if _id points to an invalid message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await request.put(api('livechat/message/mid')).query({ token: visitor.token, rid: room._id }).expect(400);
+		});
+		it('should update a message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			const message = await sendMessage(room._id, 'test', visitor.token);
+			const { body } = await request
+				.put(api(`livechat/message/${message._id}`))
+				.set(credentials)
+				.send({ msg: 'test2', token: visitor.token, rid: room._id })
+				.expect(200);
+			expect(body).to.have.property('message');
+			expect(body.message).to.have.property('_id', message._id);
+			expect(body.message).to.have.property('msg', 'test2');
+		});
+	});
+
+	describe('[DELETE] livechat/message/:_id', () => {
+		it('should fail if no token is provided', async () => {
+			await request.delete(api('livechat/message/rid')).set(credentials).expect(400);
+		});
+		it('should fail if no rid is provided', async () => {
+			await request.delete(api('livechat/message/mid')).query({ token: 'test' }).expect(400);
+		});
+		it('should fail if token points to an invalid visitor', async () => {
+			await request.delete(api('livechat/message/mid')).query({ token: 'test', rid: 'test' }).expect(400);
+		});
+		it('should fail if room points to an invalid room', async () => {
+			const visitor = await createVisitor();
+			await request.delete(api('livechat/message/mid')).query({ token: visitor.token, rid: 'test' }).expect(400);
+		});
+		it('should fail if _id points to an invalid message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await request.delete(api('livechat/message/mid')).query({ token: visitor.token, rid: room._id }).expect(400);
+		});
+		it('should delete a message', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			const message = await sendMessage(room._id, 'test', visitor.token);
+
+			const { body } = await request
+				.delete(api(`livechat/message/${message._id}`))
+				.send({ token: visitor.token, rid: room._id })
+				.expect(200);
+
+			expect(body).to.have.property('message');
+			expect(body.message).to.have.property('_id', message._id);
+		});
+	});
+
+	describe('livechat/messages.history/:rid', () => {
+		it('should fail if no token is provided', async () => {
+			await request.get(api('livechat/messages.history/rid')).set(credentials).expect(400);
+		});
+		it('should fail if token points to an invalid visitor', async () => {
+			await request.get(api('livechat/messages.history/rid')).query({ token: 'test' }).expect(400);
+		});
+		it('should fail if room points to an invalid room', async () => {
+			const visitor = await createVisitor();
+			await request.get(api('livechat/messages.history/rid')).query({ token: visitor.token }).expect(400);
+		});
+		it('should fail if room points to a room of another visitor', async () => {
+			const visitor = await createVisitor();
+			const visitor2 = await createVisitor();
+			const room = await createLivechatRoom(visitor2.token);
+			await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.query({ token: visitor.token })
+				.expect(400);
+		});
+		it('should return a list of messages', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await sendMessage(room._id, 'test', visitor.token);
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.query({ token: visitor.token })
+				.expect(200);
+			expect(body).to.have.property('messages').that.is.an('array');
+			expect(body.messages).to.have.lengthOf(2);
+			expect(body.messages[0]).to.have.property('msg', 'test');
+		});
+		it('should return a list of messages with offset and count', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await sendMessage(room._id, 'test', visitor.token);
+			await sendMessage(room._id, 'test2', visitor.token);
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.query({ token: visitor.token, offset: 1, limit: 1 })
+				.expect(200);
+			expect(body).to.have.property('messages').that.is.an('array');
+			expect(body.messages).to.have.lengthOf(1);
+			expect(body.messages[0]).to.have.property('msg', 'test');
+		});
+		it('should return a list of unseen messages', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await sendMessage(room._id, 'test', visitor.token);
+			await sendMessage(room._id, 'test2', visitor.token);
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.query({ token: visitor.token, ls: new Date() })
+				.expect(200);
+			expect(body).to.have.property('messages').that.is.an('array');
+			expect(body.messages).to.have.lengthOf(3);
+			expect(body.messages[0]).to.have.property('msg', 'test2');
+		});
+		it('should return a list of messages up to a specific date', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			const msg = await sendMessage(room._id, 'test', visitor.token);
+			const tsPlusSomeMillis = new Date(new Date(msg.ts).getTime() + 500);
+			await sleep(1000);
+			await sendMessage(room._id, 'test2', visitor.token);
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.query({ token: visitor.token, end: tsPlusSomeMillis })
+				.expect(200);
+			expect(body).to.have.property('messages').that.is.an('array');
+			expect(body.messages).to.have.lengthOf(2);
+			expect(body.messages[0]).to.have.property('msg', 'test');
+		});
+		it('should return message history for a valid room with pagination', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await sendMessage(room._id, 'Hello', visitor.token);
+
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.set(credentials)
+				.query({ token: visitor.token, limit: 1 })
+				.expect('Content-Type', 'application/json')
+				.expect(200);
+
+			expect(body).to.have.property('success', true);
+			expect(body).to.have.property('messages').of.length(1);
+			expect(body.messages[0]).to.have.property('msg', 'Hello');
+		});
+		it('should return message history for a valid room with pagination and offset', async () => {
+			const visitor = await createVisitor();
+			const room = await createLivechatRoom(visitor.token);
+			await sendMessage(room._id, 'Hello', visitor.token);
+
+			const { body } = await request
+				.get(api(`livechat/messages.history/${room._id}`))
+				.set(credentials)
+				.query({ token: visitor.token, limit: 1, offset: 1 })
+				.expect('Content-Type', 'application/json')
+				.expect(200);
+
+			expect(body).to.have.property('success', true);
+			expect(body).to.have.property('messages').of.length(1);
+			expect(body.messages[0]).to.have.property('t');
+		});
+	});
+
+	(IS_EE ? describe : describe.skip)('[EE] livechat widget', () => {
+		it('should include additional css when provided via Livechat_WidgetLayoutClasses setting', async () => {
+			await updateSetting('Livechat_WidgetLayoutClasses', 'http://my.css.com/my.css');
+			const x = await request.get('/livechat').expect(200);
+
+			expect(x.text.includes('http://my.css.com/my.css')).to.be.true;
+		});
+
+		it('should remove additional css when setting Livechat_WidgetLayoutClasses is empty', async () => {
+			await updateSetting('Livechat_WidgetLayoutClasses', '');
+			const x = await request.get('/livechat').expect(200);
+
+			expect(x.text.includes('http://my.css.com/my.css')).to.be.false;
+		});
+
+		it('should include additional js when provided via Livechat_AdditionalWidgetScripts setting', async () => {
+			await updateSetting('Livechat_AdditionalWidgetScripts', 'http://my.js.com/my.js');
+			const x = await request.get('/livechat').expect(200);
+
+			expect(x.text.includes('http://my.js.com/my.js')).to.be.true;
+		});
+
+		it('should remove additional js when setting Livechat_AdditionalWidgetScripts is empty', async () => {
+			await updateSetting('Livechat_AdditionalWidgetScripts', '');
+			const x = await request.get('/livechat').expect(200);
+
+			expect(x.text.includes('http://my.js.com/my.js')).to.be.false;
 		});
 	});
 });

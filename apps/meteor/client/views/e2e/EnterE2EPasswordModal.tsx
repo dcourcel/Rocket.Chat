@@ -1,4 +1,4 @@
-import { Box, PasswordInput, Field, FieldGroup } from '@rocket.chat/fuselage';
+import { Box, PasswordInput, Field, FieldGroup, FieldRow, FieldError } from '@rocket.chat/fuselage';
 import { useMutableCallback } from '@rocket.chat/fuselage-hooks';
 import { useTranslation } from '@rocket.chat/ui-contexts';
 import type { ReactElement } from 'react';
@@ -42,24 +42,19 @@ const EnterE2EPasswordModal = ({
 			wrapperFunction={(props) => <Box is='form' onSubmit={handleConfirm} {...props} />}
 			variant='warning'
 			title={t('Enter_E2E_password')}
+			icon='warning'
 			cancelText={t('Do_It_Later')}
-			confirmText={t('Decode_Key')}
+			confirmText={t('Enable_encryption')}
 			onClose={onClose}
 			onCancel={onCancel}
 		>
 			<Box dangerouslySetInnerHTML={{ __html: t('E2E_password_request_text') }} />
 			<FieldGroup mbs={24} w='full'>
 				<Field>
-					<Field.Row>
-						<PasswordInput
-							autoFocus
-							error={passwordError}
-							value={password}
-							onChange={handleChange}
-							placeholder={t('New_Password_Placeholder')}
-						/>
-					</Field.Row>
-					<Field.Error>{passwordError}</Field.Error>
+					<FieldRow>
+						<PasswordInput error={passwordError} value={password} onChange={handleChange} placeholder={t('Please_enter_E2EE_password')} />
+					</FieldRow>
+					<FieldError>{passwordError}</FieldError>
 				</Field>
 			</FieldGroup>
 		</GenericModal>

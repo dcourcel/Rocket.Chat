@@ -1,6 +1,5 @@
 import type { IUser } from '@rocket.chat/core-typings';
-import { Box, Icon, Tag, Skeleton } from '@rocket.chat/fuselage';
-import type { VFC } from 'react';
+import { Icon, Tag, Skeleton } from '@rocket.chat/fuselage';
 import React from 'react';
 
 import { getUserDisplayName } from '../../../../../lib/getUserDisplayName';
@@ -12,17 +11,15 @@ type RoomForewordUsernameListItemProps = {
 	useRealName: boolean;
 };
 
-const RoomForewordUsernameListItem: VFC<RoomForewordUsernameListItemProps> = ({ username, href, useRealName }) => {
+const RoomForewordUsernameListItem = ({ username, href, useRealName }: RoomForewordUsernameListItemProps) => {
 	const { data, isLoading, isError } = useUserInfoQuery({ username });
 
 	return (
-		<Box mi={4} is='a' href={href}>
-			<Tag icon={<Icon name='user' size='x20' />} className='mention-link' data-username={username} large>
-				{isLoading && <Skeleton variant='rect' />}
-				{!isLoading && isError && username}
-				{!isLoading && !isError && getUserDisplayName(data?.user?.name, username, useRealName)}
-			</Tag>
-		</Box>
+		<Tag icon={<Icon name='user' size='x20' />} data-username={username} large href={href}>
+			{isLoading && <Skeleton variant='rect' />}
+			{!isLoading && isError && username}
+			{!isLoading && !isError && getUserDisplayName(data?.user?.name, username, useRealName)}
+		</Tag>
 	);
 };
 

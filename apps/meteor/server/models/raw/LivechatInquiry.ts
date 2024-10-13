@@ -13,8 +13,8 @@ import type {
 	Document,
 	FindOptions,
 	DistinctOptions,
-	UpdateResult,
 	ModifyResult,
+	UpdateResult,
 	Filter,
 	DeleteResult,
 	IndexDescription,
@@ -114,12 +114,16 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 
 	findOneByRoomId<T extends Document = ILivechatInquiryRecord>(
 		rid: string,
-		options: FindOptions<T extends ILivechatInquiryRecord ? ILivechatInquiryRecord : T>,
+		options?: FindOptions<T extends ILivechatInquiryRecord ? ILivechatInquiryRecord : T>,
 	): Promise<T | null> {
 		const query = {
 			rid,
 		};
 		return this.findOne(query, options);
+	}
+
+	findIdsByVisitorToken(token: ILivechatInquiryRecord['v']['token']): FindCursor<ILivechatInquiryRecord> {
+		return this.find({ 'v.token': token }, { projection: { _id: 1 } });
 	}
 
 	getDistinctQueuedDepartments(options: DistinctOptions): Promise<(string | undefined)[]> {
@@ -131,13 +135,14 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 		return updated?.value;
 	}
 
-	async setLastMessageByRoomId(rid: string, message: IMessage): Promise<UpdateResult> {
-		return this.updateOne({ rid }, { $set: { lastMessage: message } });
+	async setLastMessageByRoomId(rid: ILivechatInquiryRecord['rid'], message: IMessage): Promise<ILivechatInquiryRecord | null> {
+		const updated = await this.findOneAndUpdate({ rid }, { $set: { lastMessage: message } }, { returnDocument: 'after' });
+		return updated?.value;
 	}
 
 	async findNextAndLock(queueSortBy: OmnichannelSortingMechanismSettingType, department?: string): Promise<ILivechatInquiryRecord | null> {
 		const date = new Date();
-		const result = await this.col.findOneAndUpdate(
+		const result = await this.findOneAndUpdate(
 			{
 				status: LivechatInquiryStatus.QUEUED,
 				...(department ? { department } : { department: { $exists: false } }),
@@ -172,6 +177,10 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 	}
 
 	async unlock(inquiryId: string): Promise<UpdateResult> {
+		return this.updateOne({ _id: inquiryId }, { $unset: { locked: 1, lockedAt: 1 } });
+	}
+
+	async unlockAndQueue(inquiryId: string): Promise<UpdateResult> {
 		return this.updateOne(
 			{ _id: inquiryId },
 			{ $unset: { locked: 1, lockedAt: 1 }, $set: { status: LivechatInquiryStatus.QUEUED, queuedAt: new Date() } },
@@ -283,7 +292,7 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 			},
 			{
 				$set: { status: LivechatInquiryStatus.TAKEN, takenAt: new Date() },
-				$unset: { defaultAgent: 1, estimatedInactivityCloseTimeAt: 1 },
+				$unset: { defaultAgent: 1, estimatedInactivityCloseTimeAt: 1, queuedAt: 1 },
 			},
 		);
 	}
@@ -299,8 +308,8 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 		);
 	}
 
-	queueInquiry(inquiryId: string): Promise<UpdateResult> {
-		return this.updateOne(
+	async queueInquiry(inquiryId: string): Promise<ILivechatInquiryRecord | null> {
+		const result = await this.findOneAndUpdate(
 			{
 				_id: inquiryId,
 			},
@@ -308,7 +317,10 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 				$set: { status: LivechatInquiryStatus.QUEUED, queuedAt: new Date() },
 				$unset: { takenAt: 1 },
 			},
+			{ returnDocument: 'after' },
 		);
+
+		return result?.value;
 	}
 
 	queueInquiryAndRemoveDefaultAgent(inquiryId: string): Promise<UpdateResult> {
@@ -418,5 +430,10 @@ export class LivechatInquiryRaw extends BaseRaw<ILivechatInquiryRecord> implemen
 		};
 
 		await this.deleteMany(query);
+	}
+
+	async markInquiryActiveForPeriod(rid: ILivechatInquiryRecord['rid'], period: string): Promise<ILivechatInquiryRecord | null> {
+		const updated = await this.findOneAndUpdate({ rid }, { $addToSet: { 'v.activity': period } });
+		return updated?.value;
 	}
 }

@@ -1,11 +1,11 @@
 import type { IRole } from '@rocket.chat/core-typings';
+import { License } from '@rocket.chat/license';
 import { Roles } from '@rocket.chat/models';
 import Ajv from 'ajv';
 
 import { API } from '../../../app/api/server/api';
 import { hasPermissionAsync } from '../../../app/authorization/server/functions/hasPermission';
 import { settings } from '../../../app/settings/server/index';
-import { isEnterprise } from '../../app/license/server';
 import { insertRoleAsync } from '../lib/roles/insertRole';
 import { updateRole } from '../lib/roles/updateRole';
 
@@ -96,7 +96,7 @@ API.v1.addRoute(
 	{ authRequired: true },
 	{
 		async post() {
-			if (!isEnterprise()) {
+			if (!License.hasModule('custom-roles')) {
 				throw new Meteor.Error('error-action-not-allowed', 'This is an enterprise feature');
 			}
 
@@ -130,9 +130,7 @@ API.v1.addRoute(
 
 			const role = await insertRoleAsync(roleData, options);
 
-			return API.v1.success({
-				role,
-			});
+			return API.v1.success({ role });
 		},
 	},
 );
@@ -154,7 +152,7 @@ API.v1.addRoute(
 
 			const role = await Roles.findOne(roleId);
 
-			if (!isEnterprise() && !role?.protected) {
+			if (!License.hasModule('custom-roles') && !role?.protected) {
 				throw new Meteor.Error('error-action-not-allowed', 'This is an enterprise feature');
 			}
 
@@ -172,9 +170,7 @@ API.v1.addRoute(
 
 			const updatedRole = await updateRole(roleId, roleData, options);
 
-			return API.v1.success({
-				role: updatedRole,
-			});
+			return API.v1.success({ role: updatedRole });
 		},
 	},
 );

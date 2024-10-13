@@ -17,7 +17,7 @@ import { callbacks } from '../../../../../lib/callbacks';
 import { OmnichannelQueueInactivityMonitor } from './QueueInactivityMonitor';
 import { updateInquiryQueueSla } from './SlaHelper';
 import { memoizeDebounce } from './debounceByParams';
-import { logger, helperLogger } from './logger';
+import { logger } from './logger';
 
 type QueueInfo = {
 	message: {
@@ -107,15 +107,11 @@ export const dispatchInquiryPosition = async (inquiry: Omit<InquiryWithAgentInfo
 		return;
 	}
 	const data = await normalizeQueueInfo({ position, queueInfo, department });
-	const propagateInquiryPosition = (inquiry: Omit<InquiryWithAgentInfo, 'v'>) => {
+	return setTimeout(() => {
 		void api.broadcast('omnichannel.room', inquiry.rid, {
 			type: 'queueData',
 			data,
 		});
-	};
-
-	return setTimeout(() => {
-		propagateInquiryPosition(inquiry);
 	}, 1000);
 };
 
@@ -124,7 +120,6 @@ const dispatchWaitingQueueStatus = async (department?: string) => {
 		return;
 	}
 
-	helperLogger.debug(`Updating statuses for queue ${department || 'Public'}`);
 	const queue = await LivechatInquiry.getCurrentSortedQueueAsync({
 		department,
 		queueSortBy: getInquirySortMechanismSetting(),
@@ -186,12 +181,10 @@ export const updatePredictedVisitorAbandonment = async () => {
 export const updateQueueInactivityTimeout = async () => {
 	const queueTimeout = settings.get<number>('Livechat_max_queue_wait_time');
 	if (queueTimeout <= 0) {
-		logger.debug('QueueInactivityTimer: Disabling scheduled closing');
 		await OmnichannelQueueInactivityMonitor.stop();
 		return;
 	}
 
-	logger.debug('QueueInactivityTimer: Updating estimated inactivity time for queued items');
 	await LivechatInquiry.getQueuedInquiries({ projection: { _updatedAt: 1 } }).forEach((inq) => {
 		const aggregatedDate = moment(inq._updatedAt).add(queueTimeout, 'minutes');
 		try {

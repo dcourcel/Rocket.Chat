@@ -41,7 +41,7 @@ const AppsPageContent = (): ReactElement => {
 			{ id: 'all', label: t('All_Prices'), checked: true },
 			{ id: 'free', label: t('Free_Apps'), checked: false },
 			{ id: 'paid', label: t('Paid_Apps'), checked: false },
-			{ id: 'enterprise', label: t('Enterprise'), checked: false },
+			{ id: 'premium', label: t('Premium'), checked: false },
 		],
 	});
 	const freePaidFilterOnSelected = useRadioToggle(setFreePaidFilterStructure);
@@ -90,7 +90,7 @@ const AppsPageContent = (): ReactElement => {
 
 	const getAppsData = useCallback((): appsDataType => {
 		switch (context) {
-			case 'enterprise':
+			case 'premium':
 			case 'explore':
 			case 'requested':
 				return marketplaceApps;
@@ -101,6 +101,24 @@ const AppsPageContent = (): ReactElement => {
 		}
 	}, [context, marketplaceApps, installedApps, privateApps]);
 
+	const findSort = () => {
+		const possibleSort = sortFilterStructure.items.find(({ checked }) => checked);
+
+		return possibleSort ? possibleSort.id : 'mru';
+	};
+
+	const findPurchaseType = () => {
+		const possiblePurchaseType = freePaidFilterStructure.items.find(({ checked }) => checked);
+
+		return possiblePurchaseType ? possiblePurchaseType.id : 'all';
+	};
+
+	const findStatus = () => {
+		const possibleStatus = statusFilterStructure.items.find(({ checked }) => checked);
+
+		return possibleStatus ? possibleStatus.id : 'all';
+	};
+
 	const [categories, selectedCategories, categoryTagList, onSelected] = useCategories();
 	const appsResult = useFilteredApps({
 		appsData: getAppsData(),
@@ -108,22 +126,22 @@ const AppsPageContent = (): ReactElement => {
 		current,
 		itemsPerPage,
 		categories: useMemo(() => selectedCategories.map(({ label }) => label), [selectedCategories]),
-		purchaseType: useMemo(() => freePaidFilterStructure.items.find(({ checked }) => checked)?.id, [freePaidFilterStructure]),
-		sortingMethod: useMemo(() => sortFilterStructure.items.find(({ checked }) => checked)?.id, [sortFilterStructure]),
-		status: useMemo(() => statusFilterStructure.items.find(({ checked }) => checked)?.id, [statusFilterStructure]),
+		purchaseType: useMemo(findPurchaseType, [freePaidFilterStructure]),
+		sortingMethod: useMemo(findSort, [sortFilterStructure]),
+		status: useMemo(findStatus, [statusFilterStructure]),
 		context,
 	});
 
-	const noInstalledApps = appsResult.phase === AsyncStatePhase.RESOLVED && !isMarketplace && appsResult.value.totalAppsLength === 0;
+	const noInstalledApps = appsResult.phase === AsyncStatePhase.RESOLVED && !isMarketplace && appsResult.value?.totalAppsLength === 0;
 
 	const noMarketplaceOrInstalledAppMatches =
-		appsResult.phase === AsyncStatePhase.RESOLVED && (isMarketplace || isPremium) && appsResult.value.count === 0;
+		appsResult.phase === AsyncStatePhase.RESOLVED && (isMarketplace || isPremium) && appsResult.value?.count === 0;
 
 	const noInstalledAppMatches =
 		appsResult.phase === AsyncStatePhase.RESOLVED &&
 		context === 'installed' &&
-		appsResult.value.totalAppsLength !== 0 &&
-		appsResult.value.count === 0;
+		appsResult.value?.totalAppsLength !== 0 &&
+		appsResult.value?.count === 0;
 
 	const noAppRequests = context === 'requested' && appsResult?.value?.count === 0;
 
@@ -176,13 +194,13 @@ const AppsPageContent = (): ReactElement => {
 		}
 
 		if (noMarketplaceOrInstalledAppMatches) {
-			return <NoMarketplaceOrInstalledAppMatchesEmptyState shouldShowSearchText={appsResult.value.shouldShowSearchText} text={text} />;
+			return <NoMarketplaceOrInstalledAppMatchesEmptyState shouldShowSearchText={!!appsResult.value?.shouldShowSearchText} text={text} />;
 		}
 
 		if (noInstalledAppMatches) {
 			return (
 				<NoInstalledAppMatchesEmptyState
-					shouldShowSearchText={appsResult.value.shouldShowSearchText}
+					shouldShowSearchText={!!appsResult.value?.shouldShowSearchText}
 					text={text}
 					onButtonClick={handleReturn}
 				/>

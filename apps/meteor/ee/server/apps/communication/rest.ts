@@ -3,6 +3,7 @@ import type { IAppInfo } from '@rocket.chat/apps-engine/definition/metadata';
 import type { AppManager } from '@rocket.chat/apps-engine/server/AppManager';
 import { AppInstallationSource } from '@rocket.chat/apps-engine/server/storage';
 import type { IUser, IMessage } from '@rocket.chat/core-typings';
+import { License } from '@rocket.chat/license';
 import { Settings, Users } from '@rocket.chat/models';
 import { serverFetch as fetch } from '@rocket.chat/server-fetch';
 import { Meteor } from 'meteor/meteor';
@@ -17,7 +18,7 @@ import { settings } from '../../../../app/settings/server';
 import { Info } from '../../../../app/utils/rocketchat.info';
 import { i18n } from '../../../../server/lib/i18n';
 import { sendMessagesToAdmins } from '../../../../server/lib/sendMessagesToAdmins';
-import { canEnableApp, isEnterprise } from '../../../app/license/server/license';
+import { canEnableApp } from '../../../app/license/server/canEnableApp';
 import { formatAppInstanceForRest } from '../../../lib/misc/formatAppInstanceForRest';
 import { appEnableCheck } from '../marketplace/appEnableCheck';
 import { notifyAppInstall } from '../marketplace/appInstall';
@@ -208,8 +209,9 @@ export class AppsRestApi {
 			{ authRequired: true },
 			{
 				async get() {
-					const apps = manager.get().map(formatAppInstanceForRest);
-					return API.v1.success({ apps });
+					const apps = await manager.get();
+					const formatted = await Promise.all(apps.map(formatAppInstanceForRest));
+					return API.v1.success({ apps: formatted });
 				},
 			},
 		);
@@ -301,7 +303,8 @@ export class AppsRestApi {
 					}
 					apiDeprecationLogger.endpoint(this.request.route, '7.0.0', this.response, 'Use /apps/installed to get the installed apps list.');
 
-					const apps = manager.get().map(formatAppInstanceForRest);
+					const proxiedApps = await manager.get();
+					const apps = await Promise.all(proxiedApps.map(formatAppInstanceForRest));
 
 					return API.v1.success({ apps });
 				},
@@ -320,16 +323,18 @@ export class AppsRestApi {
 								});
 							}
 
-							buff = Buffer.from(await response.arrayBuffer());
+							buff = await response.buffer();
 						} catch (e: any) {
 							orchestrator.getRocketChatLogger().error('Error getting the app from url:', e.response.data);
 							return API.v1.internalError();
 						}
 
 						if (this.bodyParams.downloadOnly) {
+							apiDeprecationLogger.parameter(this.request.route, 'downloadOnly', '7.0.0', this.response);
+
 							return API.v1.success({ buff });
 						}
-					} else if (this.bodyParams.appId && this.bodyParams.marketplace && this.bodyParams.version) {
+					} else if ('appId' in this.bodyParams && this.bodyParams.appId && this.bodyParams.marketplace && this.bodyParams.version) {
 						const baseUrl = orchestrator.getMarketplaceUrl();
 
 						const headers = getDefaultHeaders();
@@ -409,7 +414,7 @@ export class AppsRestApi {
 						});
 					}
 
-					info.status = aff.getApp().getStatus();
+					info.status = await aff.getApp().getStatus();
 
 					void notifyAppInstall(orchestrator.getMarketplaceUrl() as string, 'install', info);
 
@@ -505,8 +510,8 @@ export class AppsRestApi {
 			'languages',
 			{ authRequired: false },
 			{
-				get() {
-					const apps = manager.get().map((prl) => ({
+				async get() {
+					const apps = (await manager.get()).map((prl) => ({
 						id: prl.getID(),
 						languages: prl.getStorageItem().languageContent,
 					}));
@@ -531,10 +536,7 @@ export class AppsRestApi {
 
 					try {
 						const { event, externalComponent } = this.bodyParams;
-						const result = (Apps?.getBridges()?.getListenerBridge() as Record<string, any>).externalComponentEvent(
-							event,
-							externalComponent,
-						);
+						const result = (Apps.getBridges()?.getListenerBridge() as Record<string, any>).externalComponentEvent(event, externalComponent);
 
 						return API.v1.success({ result });
 					} catch (e: any) {
@@ -745,7 +747,12 @@ export class AppsRestApi {
 						return API.v1.internalError('private_app_install_disabled');
 					}
 
-					const aff = await manager.update(buff, permissionsGranted);
+					const user = orchestrator
+						?.getConverters()
+						?.get('users')
+						?.convertToApp(await Meteor.userAsync());
+
+					const aff = await manager.update(buff, permissionsGranted, { user, loadApp: true });
 					const info: IAppInfo & { status?: AppStatus } = aff.getAppInfo();
 
 					if (aff.hasStorageError()) {
@@ -760,7 +767,7 @@ export class AppsRestApi {
 						});
 					}
 
-					info.status = aff.getApp().getStatus();
+					info.status = await aff.getApp().getStatus();
 
 					void notifyAppInstall(orchestrator.getMarketplaceUrl() as string, 'update', info);
 
@@ -784,10 +791,14 @@ export class AppsRestApi {
 						?.get('users')
 						.convertToApp(await Meteor.userAsync());
 
-					await manager.remove(prl.getID(), { user });
-
 					const info: IAppInfo & { status?: AppStatus } = prl.getInfo();
-					info.status = prl.getStatus();
+					try {
+						await manager.remove(prl.getID(), { user });
+						info.status = AppStatus.DISABLED;
+					} catch (e) {
+						info.status = await prl.getStatus();
+						return API.v1.failure({ app: info });
+					}
 
 					void notifyAppInstall(orchestrator.getMarketplaceUrl() as string, 'uninstall', info);
 
@@ -854,6 +865,7 @@ export class AppsRestApi {
 									user_name: `@${this.user.username}`,
 									message: message || '',
 									learn_more: learnMore,
+									interpolation: { escapeValue: false },
 								}),
 							};
 						};
@@ -1148,7 +1160,7 @@ export class AppsRestApi {
 					const storedApp = prl.getStorageItem();
 					const { installationSource, marketplaceInfo } = storedApp;
 
-					if (!isEnterprise() && installationSource === AppInstallationSource.MARKETPLACE) {
+					if (!License.hasValidLicense() && installationSource === AppInstallationSource.MARKETPLACE) {
 						try {
 							const baseUrl = orchestrator.getMarketplaceUrl() as string;
 							const headers = getDefaultHeaders();

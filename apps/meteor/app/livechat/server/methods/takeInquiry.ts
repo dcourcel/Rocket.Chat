@@ -1,4 +1,5 @@
-import { LivechatInquiry, Users } from '@rocket.chat/models';
+import { Omnichannel } from '@rocket.chat/core-services';
+import { LivechatInquiry, LivechatRooms, Users } from '@rocket.chat/models';
 import type { ServerMethods } from '@rocket.chat/ui-contexts';
 import { Meteor } from 'meteor/meteor';
 
@@ -48,13 +49,18 @@ export const takeInquiry = async (
 		});
 	}
 
+	const room = await LivechatRooms.findOneById(inquiry.rid);
+	if (!room || !(await Omnichannel.isWithinMACLimit(room))) {
+		throw new Error('error-mac-limit-reached');
+	}
+
 	const agent = {
 		agentId: user._id,
 		username: user.username,
 	};
 
 	try {
-		await RoutingManager.takeInquiry(inquiry, agent, options);
+		await RoutingManager.takeInquiry(inquiry, agent, options ?? {}, room);
 	} catch (e: any) {
 		throw new Meteor.Error(e.message);
 	}

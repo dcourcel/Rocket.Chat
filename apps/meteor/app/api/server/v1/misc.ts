@@ -1,13 +1,14 @@
 import crypto from 'crypto';
 
 import type { IUser } from '@rocket.chat/core-typings';
-import { Users } from '@rocket.chat/models';
+import { Settings, Users } from '@rocket.chat/models';
 import {
 	isShieldSvgProps,
 	isSpotlightProps,
 	isDirectoryProps,
 	isMethodCallProps,
 	isMethodCallAnonProps,
+	isFingerprintProps,
 	isMeteorCall,
 	validateParamsPwGetPolicyRest,
 } from '@rocket.chat/rest-typings';
@@ -16,15 +17,17 @@ import EJSON from 'ejson';
 import { check } from 'meteor/check';
 import { DDPRateLimiter } from 'meteor/ddp-rate-limiter';
 import { Meteor } from 'meteor/meteor';
+import { v4 as uuidv4 } from 'uuid';
 
 import { i18n } from '../../../../server/lib/i18n';
 import { SystemLogger } from '../../../../server/lib/logger/system';
 import { getLogs } from '../../../../server/stream/stdout';
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { passwordPolicy } from '../../../lib/server';
-import { apiDeprecationLogger } from '../../../lib/server/lib/deprecationWarningLogger';
+import { notifyOnSettingChangedById } from '../../../lib/server/lib/notifyListener';
 import { settings } from '../../../settings/server';
 import { getDefaultUserFields } from '../../../utils/server/functions/getDefaultUserFields';
+import { isSMTPConfigured } from '../../../utils/server/functions/isSMTPConfigured';
 import { getURL } from '../../../utils/server/getURL';
 import { API } from '../api';
 import { getLoggedInUser } from '../helpers/getLoggedInUser';
@@ -407,10 +410,13 @@ API.v1.addRoute(
 	{
 		authRequired: false,
 		validateParams: validateParamsPwGetPolicyRest,
+		deprecation: {
+			version: '7.0.0',
+			alternatives: ['pw.getPolicy'],
+		},
 	},
 	{
 		async get() {
-			apiDeprecationLogger.endpoint(this.request.route, '7.0.0', this.response, ' Use pw.getPolicy instead.');
 			check(
 				this.queryParams,
 				Match.ObjectIncluding({
@@ -536,7 +542,7 @@ API.v1.addRoute(
 				this.token ||
 				crypto
 					.createHash('md5')
-					.update(this.requestIp + this.request.headers['user-agent'])
+					.update(this.requestIp + this.user._id)
 					.digest('hex');
 
 			const rateLimiterInput = {
@@ -592,12 +598,7 @@ API.v1.addRoute(
 
 			const { method, params, id } = data;
 
-			const connectionId =
-				this.token ||
-				crypto
-					.createHash('md5')
-					.update(this.requestIp + this.request.headers['user-agent'])
-					.digest('hex');
+			const connectionId = this.token || crypto.createHash('md5').update(this.requestIp).digest('hex');
 
 			const rateLimiterInput = {
 				userId: this.userId || undefined,
@@ -637,9 +638,101 @@ API.v1.addRoute(
 	{ authRequired: true },
 	{
 		async get() {
-			const isMailURLSet = !(process.env.MAIL_URL === 'undefined' || process.env.MAIL_URL === undefined);
-			const isSMTPConfigured = Boolean(settings.get('SMTP_Host')) || isMailURLSet;
-			return API.v1.success({ isSMTPConfigured });
+			return API.v1.success({ isSMTPConfigured: isSMTPConfigured() });
+		},
+	},
+);
+
+/**
+ * @openapi
+ *  /api/v1/fingerprint:
+ *    post:
+ *      description: Update Fingerprint definition as a new workspace or update of configuration
+ *      security:
+ *        $ref: '#/security/authenticated'
+ *      requestBody:
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                setDeploymentAs:
+ *                  type: string
+ *            example: |
+ *              {
+ *                 "setDeploymentAs": "new-workspace"
+ *              }
+ *      responses:
+ *        200:
+ *          description: Workspace successfully configured
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/ApiSuccessV1'
+ *        default:
+ *          description: Unexpected error
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/ApiFailureV1'
+ */
+API.v1.addRoute(
+	'fingerprint',
+	{
+		authRequired: true,
+		validateParams: isFingerprintProps,
+	},
+	{
+		async post() {
+			check(this.bodyParams, {
+				setDeploymentAs: String,
+			});
+
+			const settingsIds: string[] = [];
+
+			if (this.bodyParams.setDeploymentAs === 'new-workspace') {
+				settingsIds.push(
+					'Cloud_Service_Agree_PrivacyTerms',
+					'Cloud_Workspace_Id',
+					'Cloud_Workspace_Name',
+					'Cloud_Workspace_Client_Id',
+					'Cloud_Workspace_Client_Secret',
+					'Cloud_Workspace_Client_Secret_Expires_At',
+					'Cloud_Workspace_Registration_Client_Uri',
+					'Cloud_Workspace_PublicKey',
+					'Cloud_Workspace_License',
+					'Cloud_Workspace_Had_Trial',
+					'Cloud_Workspace_Access_Token',
+					'uniqueID',
+					'Cloud_Workspace_Access_Token_Expires_At',
+				);
+			}
+
+			settingsIds.push('Deployment_FingerPrint_Verified');
+
+			const promises = settingsIds.map((settingId) => {
+				if (settingId === 'uniqueID') {
+					return Settings.resetValueById('uniqueID', process.env.DEPLOYMENT_ID || uuidv4());
+				}
+
+				if (settingId === 'Cloud_Workspace_Access_Token_Expires_At') {
+					return Settings.resetValueById('Cloud_Workspace_Access_Token_Expires_At', new Date(0));
+				}
+
+				if (settingId === 'Deployment_FingerPrint_Verified') {
+					return Settings.updateValueById('Deployment_FingerPrint_Verified', true);
+				}
+
+				return Settings.resetValueById(settingId);
+			});
+
+			(await Promise.all(promises)).forEach((value, index) => {
+				if (value?.modifiedCount) {
+					void notifyOnSettingChangedById(settingsIds[index]);
+				}
+			});
+
+			return API.v1.success({});
 		},
 	},
 );

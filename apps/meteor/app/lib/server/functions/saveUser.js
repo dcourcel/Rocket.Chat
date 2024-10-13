@@ -1,3 +1,4 @@
+import { Apps, AppEvents } from '@rocket.chat/apps';
 import { isUserFederated } from '@rocket.chat/core-typings';
 import { Users } from '@rocket.chat/models';
 import Gravatar from 'gravatar';
@@ -5,7 +6,6 @@ import { Accounts } from 'meteor/accounts-base';
 import { Meteor } from 'meteor/meteor';
 import _ from 'underscore';
 
-import { AppEvents, Apps } from '../../../../ee/server/apps/orchestrator';
 import { callbacks } from '../../../../lib/callbacks';
 import { trim } from '../../../../lib/utils/stringUtils';
 import { getNewUserRoles } from '../../../../server/services/user/lib/getNewUserRoles';
@@ -15,6 +15,8 @@ import * as Mailer from '../../../mailer/server/api';
 import { settings } from '../../../settings/server';
 import { safeGetMeteorUser } from '../../../utils/server/functions/safeGetMeteorUser';
 import { validateEmailDomain } from '../lib';
+import { generatePassword } from '../lib/generatePassword';
+import { notifyOnUserChangeById, notifyOnUserChange } from '../lib/notifyListener';
 import { passwordPolicy } from '../lib/passwordPolicy';
 import { checkEmailAvailability } from './checkEmailAvailability';
 import { checkUsernameAvailability } from './checkUsernameAvailability';
@@ -67,6 +69,13 @@ async function _sendUserEmail(subject, html, userData) {
 async function validateUserData(userId, userData) {
 	const existingRoles = _.pluck(await getRoles(), '_id');
 
+	if (userData.verified && userData._id && userId === userData._id) {
+		throw new Meteor.Error('error-action-not-allowed', 'Editing email verification is not allowed', {
+			method: 'insertOrUpdateUser',
+			action: 'Editing_user',
+		});
+	}
+
 	if (userData._id && userId !== userData._id && !(await hasPermissionAsync(userId, 'edit-other-user-info'))) {
 		throw new Meteor.Error('error-action-not-allowed', 'Editing user is not allowed', {
 			method: 'insertOrUpdateUser',
@@ -107,10 +116,6 @@ async function validateUserData(userId, userData) {
 			method: 'insertOrUpdateUser',
 			field: 'Username',
 		});
-	}
-
-	if (userData.roles) {
-		await callbacks.run('validateUserRoles', userData);
 	}
 
 	let nameValidation;
@@ -279,6 +284,8 @@ const saveNewUser = async function (userData, sendPassword) {
 		password: userData.password,
 		joinDefaultChannels: userData.joinDefaultChannels,
 		isGuest,
+		globalRoles: roles,
+		skipNewUserRolesSetting: true,
 	};
 	if (userData.email) {
 		createUser.email = userData.email;
@@ -288,7 +295,6 @@ const saveNewUser = async function (userData, sendPassword) {
 
 	const updateUser = {
 		$set: {
-			roles,
 			...(typeof userData.name !== 'undefined' && { name: userData.name }),
 			settings: userData.settings || {},
 		},
@@ -331,20 +337,29 @@ const saveNewUser = async function (userData, sendPassword) {
 		}
 	}
 
+	void notifyOnUserChangeById({ clientAction: 'inserted', id: _id });
+
 	return _id;
 };
 
 export const saveUser = async function (userId, userData) {
-	const oldUserData = await Users.findOneById(userData._id);
+	const oldUserData = userData._id && (await Users.findOneById(userData._id));
 	if (oldUserData && isUserFederated(oldUserData)) {
 		throw new Meteor.Error('Edit_Federated_User_Not_Allowed', 'Not possible to edit a federated user');
 	}
+
 	await validateUserData(userId, userData);
+
+	await callbacks.run('beforeSaveUser', {
+		user: userData,
+		oldUser: oldUserData,
+	});
+
 	let sendPassword = false;
 
 	if (userData.hasOwnProperty('setRandomPassword')) {
 		if (userData.setRandomPassword) {
-			userData.password = passwordPolicy.generatePassword();
+			userData.password = generatePassword();
 			userData.requirePasswordChange = true;
 			sendPassword = true;
 		}
@@ -396,6 +411,7 @@ export const saveUser = async function (userId, userData) {
 
 	const updateUser = {
 		$set: {},
+		$unset: {},
 	};
 
 	handleBio(updateUser, userData.bio);
@@ -414,6 +430,9 @@ export const saveUser = async function (userId, userData) {
 
 	if (typeof userData.requirePasswordChange !== 'undefined') {
 		updateUser.$set.requirePasswordChange = userData.requirePasswordChange;
+		if (!userData.requirePasswordChange) {
+			updateUser.$unset.requirePasswordChangeReason = 1;
+		}
 	}
 
 	if (typeof userData.verified === 'boolean') {
@@ -423,14 +442,14 @@ export const saveUser = async function (userId, userData) {
 	await Users.updateOne({ _id: userData._id }, updateUser);
 
 	// App IPostUserUpdated event hook
-	const userUpdated = await Users.findOneById(userId);
+	const userUpdated = await Users.findOneById(userData._id);
 
 	await callbacks.run('afterSaveUser', {
 		user: userUpdated,
 		oldUser: oldUserData,
 	});
 
-	await Apps.triggerEvent(AppEvents.IPostUserUpdated, {
+	await Apps.self?.triggerEvent(AppEvents.IPostUserUpdated, {
 		user: userUpdated,
 		previousUser: oldUserData,
 		performedBy: await safeGetMeteorUser(),
@@ -439,6 +458,18 @@ export const saveUser = async function (userId, userData) {
 	if (sendPassword) {
 		await _sendUserEmail(settings.get('Password_Changed_Email_Subject'), passwordChangedHtml, userData);
 	}
+
+	if (typeof userData.verified === 'boolean') {
+		delete userData.verified;
+	}
+	void notifyOnUserChange({
+		clientAction: 'updated',
+		id: userData._id,
+		diff: {
+			...userData,
+			emails: userUpdated.emails,
+		},
+	});
 
 	return true;
 };

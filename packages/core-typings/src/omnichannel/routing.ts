@@ -24,25 +24,25 @@ export interface IRoutingMethod {
 }
 
 export type TransferData = {
-	userId: string;
+	userId?: string;
 	departmentId?: string;
 	department?: Pick<ILivechatDepartment, '_id' | 'name'>;
-	transferredBy: {
-		_id: string;
-		username?: string;
-	};
+	transferredBy: TransferByData;
 	transferredTo?: {
 		username?: string;
 		name?: string;
 	};
 	clientAction?: boolean;
-	scope: 'agent' | 'department' | 'queue' | 'autoTransferUnansweredChatsToAgent' | 'autoTransferUnansweredChatsToQueue';
+	scope?: 'agent' | 'department' | 'queue' | 'autoTransferUnansweredChatsToAgent' | 'autoTransferUnansweredChatsToQueue';
 	comment?: string;
+	hops?: number;
+	usingFallbackDep?: boolean;
+	originalDepartmentName?: string;
 };
 
 export type TransferByData = {
 	_id: string;
 	username?: string;
 	name?: string;
-	userType?: 'agent' | 'user' | 'visitor';
+	userType: 'agent' | 'user' | 'visitor';
 };

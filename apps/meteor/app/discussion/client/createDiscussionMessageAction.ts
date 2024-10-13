@@ -44,7 +44,7 @@ Meteor.startup(() => {
 				subscription,
 				user,
 			}) {
-				if (drid || !Number.isNaN(dcount)) {
+				if (drid || !Number.isNaN(Number(dcount))) {
 					return false;
 				}
 				if (!subscription) {
@@ -59,7 +59,7 @@ Meteor.startup(() => {
 					return false;
 				}
 
-				return uid !== user._id ? hasPermission('start-discussion-other-user') : hasPermission('start-discussion');
+				return uid !== user._id ? hasPermission('start-discussion-other-user', room._id) : hasPermission('start-discussion', room._id);
 			},
 			order: 1,
 			group: 'menu',

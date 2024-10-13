@@ -1,11 +1,10 @@
 import { AutoComplete, Option, Chip, Box, Skeleton } from '@rocket.chat/fuselage';
 import { useDebouncedValue } from '@rocket.chat/fuselage-hooks';
+import { RoomAvatar } from '@rocket.chat/ui-avatar';
 import { useEndpoint } from '@rocket.chat/ui-contexts';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactElement, ComponentProps } from 'react';
 import React, { memo, useMemo, useState } from 'react';
-
-import RoomAvatar from '../avatar/RoomAvatar';
 
 const generateQuery = (
 	term = '',
@@ -50,7 +49,7 @@ const RoomAutoCompleteMultiple = ({ value, onChange, ...props }: RoomAutoComplet
 			setFilter={setFilter}
 			multiple
 			renderSelected={({ selected: { value, label }, onRemove, ...props }): ReactElement => (
-				<Chip key={value} {...props} height='x20' value={value} onClick={onRemove} mie={4} mbe={4}>
+				<Chip {...props} key={value} value={value} onClick={onRemove}>
 					<RoomAvatar size='x20' room={{ type: label?.type || 'c', _id: value, ...label }} />
 					<Box is='span' margin='none' mis={4}>
 						{label?.name}

@@ -12,6 +12,7 @@ import { canSendMessageAsync } from '../../../authorization/server/functions/can
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { metrics } from '../../../metrics/server';
 import { settings } from '../../../settings/server';
+import { MessageTypes } from '../../../ui-utils/server';
 import { sendMessage } from '../functions/sendMessage';
 import { RateLimiter } from '../lib';
 
@@ -78,17 +79,28 @@ export async function executeSendMessage(uid: IUser['_id'], message: AtLeast<IMe
 		throw new Error("The 'rid' property on the message object is missing.");
 	}
 
+	check(rid, String);
+
 	try {
 		const room = await canSendMessageAsync(rid, { uid, username: user.username, type: user.type });
 
+		if (room.encrypted && settings.get<boolean>('E2E_Enable') && !settings.get<boolean>('E2E_Allow_Unencrypted_Messages')) {
+			if (message.t !== 'e2e') {
+				throw new Meteor.Error('error-not-allowed', 'Not allowed to send un-encrypted messages in an encrypted room', {
+					method: 'sendMessage',
+				});
+			}
+		}
+
 		metrics.messagesSent.inc(); // TODO This line needs to be moved to it's proper place. See the comments on: https://github.com/RocketChat/Rocket.Chat/pull/5736
-		return sendMessage(user, message, room, false, previewUrls);
+		return await sendMessage(user, message, room, false, previewUrls);
 	} catch (err: any) {
 		SystemLogger.error({ msg: 'Error sending message:', err });
 
 		const errorMessage = typeof err === 'string' ? err : err.error || err.message;
+		const errorContext = err.details ?? {};
 		void api.broadcast('notify.ephemeralMessage', uid, message.rid, {
-			msg: i18n.t(errorMessage, { lng: user.language }),
+			msg: i18n.t(errorMessage, errorContext, user.language),
 		});
 
 		if (typeof err === 'string') {
@@ -107,7 +119,7 @@ declare module '@rocket.chat/ui-contexts' {
 }
 
 Meteor.methods<ServerMethods>({
-	sendMessage(message, previewUrls) {
+	async sendMessage(message, previewUrls) {
 		check(message, Object);
 
 		const uid = Meteor.userId();
@@ -117,8 +129,12 @@ Meteor.methods<ServerMethods>({
 			});
 		}
 
+		if (MessageTypes.isSystemMessage(message)) {
+			throw new Error("Cannot send system messages using 'sendMessage'");
+		}
+
 		try {
-			return executeSendMessage(uid, message, previewUrls);
+			return await executeSendMessage(uid, message, previewUrls);
 		} catch (error: any) {
 			if ((error.error || error.message) === 'error-not-allowed') {
 				throw new Meteor.Error(error.error || error.message, error.reason, {
