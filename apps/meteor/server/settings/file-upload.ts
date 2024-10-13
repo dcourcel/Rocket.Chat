@@ -112,6 +112,116 @@ export const createFileUploadSettings = () =>
 			public: true,
 		});
 
+		await this.section('FileUpload Conversion', async function() {
+			await this.add('FileUpload_Video_Conversion_Enabled', true, {
+					type: 'boolean',
+			});
+
+			const enableVideoQuery = {
+					_id: 'FileUpload_Video_Conversion_Enabled',
+					value: true,
+			};
+
+			await this.add('FileUpload_Video_Encoder', 'x264', {
+					type: 'select',
+					values: [{
+							key: 'x264',
+							i18nLabel: 'x264',
+					}],
+					enableQuery: enableVideoQuery,
+			});
+
+			await this.add('FileUpload_Video_Configure_Image_Size', true, {
+					type: 'boolean',
+					enableQuery: enableVideoQuery,
+			});
+			const videoSizeQuery = [enableVideoQuery, {
+					_id: 'FileUpload_Video_Configure_Image_Size',
+					value: true,
+			}];
+			await this.add('FileUpload_Video_Max_Width', 1280, {
+					type: 'int',
+					enableQuery: videoSizeQuery,
+			});
+			await this.add('FileUpload_Video_Max_Height', 1280, {
+					type: 'int',
+					enableQuery: videoSizeQuery,
+			});
+
+			await this.add('FileUpload_Video_Framerate_Control', 'pfr', {
+					type: 'select',
+					values: [{
+							key: 'vfr',
+							i18nLabel: 'vfr',
+					},
+					{
+							key: 'cfr',
+							i18nLabel: 'cfr',
+					},
+					{
+							key: 'pfr',
+							i18nLabel: 'pfr',
+					}],
+					i18nDescription: 'FileUpload_Video_Framerate_ControlDescription',
+					enableQuery: enableVideoQuery,
+			});
+			const videoFramerateQuery = [enableVideoQuery, {
+					_id: 'FileUpload_Video_Framerate_Control',
+					value: { $ne: 'vfr' },
+			}];
+			await this.add('FileUpload_Video_Configure_Framerate', true, {
+					type: 'boolean',
+					enableQuery: videoFramerateQuery,
+			});
+			await this.add('FileUpload_Video_Framerate', 30, {
+					type: 'int',
+					enableQuery: videoFramerateQuery.concat({
+							_id: 'FileUpload_Video_Configure_Framerate',
+							value: true,
+					}),
+			});
+
+			await this.add('FileUpload_Video_Quality_Type', 'Bitrate', {
+					type: 'select',
+					values: [{
+							key: 'ConstantQuality',
+							i18nLabel: 'ConstantQuality',
+					},
+					{
+							key: 'Bitrate',
+							i18nLabel: 'Bitrate',
+					}],
+					enableQuery: enableVideoQuery,
+			});
+			const videoConstantQualityQuery = [enableVideoQuery, {
+					_id: 'FileUpload_Video_Quality_Type',
+					value: 'ConstantQuality',
+			}];
+			const videoBitrateQualityQuery = [enableVideoQuery, {
+					_id: 'FileUpload_Video_Quality_Type',
+					value: 'Bitrate',
+			}];
+			await this.add('FileUpload_Video_Quality', 22, {
+					type: 'int',
+					enableQuery: videoConstantQualityQuery,
+			});
+			await this.add('FileUpload_Video_Bitrate', 2500, {
+					type: 'int',
+					enableQuery: videoBitrateQualityQuery,
+			});
+			await this.add('FileUpload_Video_Two_Pass', true, {
+					type: 'boolean',
+					enableQuery: videoBitrateQualityQuery,
+			});
+			await this.add('FileUpload_Video_Turbo', true, {
+					type: 'boolean',
+					enableQuery: videoBitrateQualityQuery.concat({
+							_id: 'FileUpload_Video_Two_Pass',
+							value: true,
+					}),
+			});
+		});
+
 		await this.section('Amazon S3', async function () {
 			await this.add('FileUpload_S3_Bucket', '', {
 				type: 'string',
