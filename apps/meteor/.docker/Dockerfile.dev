@@ -1,4 +1,4 @@
-FROM debian:12.5
+FROM node:14.21.3-bullseye-slim
 ARG userid=1000
 ARG groupid=1000
 
@@ -9,8 +9,6 @@ RUN if ! cat /etc/passwd | grep ":$userid:" > /dev/null; then addgroup --gid $gr
 RUN apt-get update && apt-get -y install g++ build-essential python3 curl git procps handbrake-cli
 
 RUN cd ~ && curl -s -o mongodb-mongosh_2.2.6_amd64.deb https://downloads.mongodb.com/compass/mongodb-mongosh_2.2.6_amd64.deb && dpkg --install mongodb-mongosh_2.2.6_amd64.deb && rm mongodb-mongosh_2.2.6_amd64.deb
-
-RUN cd ~ && curl -s https://nodejs.org/dist/latest-v14.x/node-v14.21.3-linux-x64.tar.gz | tar -xz && cp -ar "$(ls -1 | grep node | head -n 1)"/* /usr/local && rm -r $(ls -1 | grep node | head -n 1)
 
 RUN npm install --global yarn
 

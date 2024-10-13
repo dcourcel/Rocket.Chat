@@ -1,9 +1,6 @@
-FROM debian:12.5
+FROM node:14.21.3-bullseye-slim
 
 LABEL maintainer="buildmaster@rocket.chat"
-
-# Download and install node in /usr/local
-RUN cd ~ && curl -s https://nodejs.org/dist/latest-v14.x/node-v14.21.3-linux-x64.tar.gz | tar -xz && cp -ar "$(ls -1 | grep node | head -n 1)"/* /usr/local && rm -r $(ls -1 | grep node | head -n 1)
 
 # dependencies
 RUN groupadd -g 65533 -r rocketchat \
@@ -11,7 +8,7 @@ RUN groupadd -g 65533 -r rocketchat \
     && mkdir -p /app/uploads \
     && chown rocketchat:rocketchat /app/uploads \
     && apt-get update \
-    && apt-get install -y --no-install-recommends fontconfig
+    && apt-get install -y --no-install-recommends fontconfig handbrake-cli
 
 # --chown requires Docker 17.12 and works only on Linux
 ADD --chown=rocketchat:rocketchat . /app
