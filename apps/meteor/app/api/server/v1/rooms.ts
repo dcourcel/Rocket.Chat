@@ -11,7 +11,7 @@ import {
 	isRoomsCleanHistoryProps,
 } from '@rocket.chat/rest-typings';
 import { Meteor } from 'meteor/meteor';
- 
+
 import { isTruthy } from '../../../../lib/isTruthy';
 import { omit } from '../../../../lib/utils/omit';
 import * as dataExport from '../../../../server/lib/dataExport';
@@ -22,6 +22,9 @@ import { canAccessRoomAsync, canAccessRoomIdAsync } from '../../../authorization
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { saveRoomSettings } from '../../../channel-settings/server/methods/saveRoomSettings';
 import { createDiscussion } from '../../../discussion/server/methods/createDiscussion';
+import { convertVideo } from '../../../file-upload/server/lib/convertVideo';
+import { FileUpload } from '../../../file-upload/server';
+import { sendFileMessage } from '../../../file-upload/server/methods/sendFileMessage';
 import { leaveRoomMethod } from '../../../lib/server/methods/leaveRoom';
 import { settings } from '../../../settings/server';
 import { API } from '../api';
@@ -37,8 +40,6 @@ import {
 	findChannelAndPrivateAutocompleteWithPagination,
 	findRoomsAvailableForTeams,
 } from '../lib/rooms';
-import { check } from 'meteor/check';
-import { getHandlerFromMimeType } from '../../../file-upload/server/lib/UploadBuilder';
 
 async function findRoomByIdOrName({
 	params,
@@ -174,19 +175,40 @@ API.v1.addRoute(
 			}
 
 			const { fields } = file;
+			let { fileBuffer } = file;
 
-			check(file, Match.ObjectIncluding({
-				filename: String,
-				fileBuffer: Buffer,
-				encoding: String,
-				mimetype: String,
-			}));
-			check(fields, Match.ObjectIncluding({
-				description: Match.Optional(String)
-			}));
+			const details = {
+				name: file.filename,
+				size: fileBuffer.length,
+				type: file.mimetype,
+				rid: this.urlParams.rid,
+				userId: this.userId,
+			};
 
-			const handler = getHandlerFromMimeType(file.mimetype, this.urlParams.rid, this.userId);
-			const message = Promise.await(handler.processAttachment(file, fields));
+			const stripExif = settings.get('Message_Attachments_Strip_Exif');
+			if (stripExif) {
+				// No need to check mime. Library will ignore any files without exif/xmp tags (like BMP, ico, PDF, etc)
+				fileBuffer = await Media.stripExifFromBuffer(fileBuffer);
+			}
+
+			const fileStore = FileUpload.getStore('Uploads');
+			let uploadedFile: IUpload | null = await fileStore.insert(details, fileBuffer);
+
+			if (settings.get<boolean>('FileUpload_Video_Conversion_Enabled') && uploadedFile.typeGroup === 'video') {
+				uploadedFile = await convertVideo(uploadedFile);
+				if (uploadedFile == null) {
+					return API.v1.failure('Failed to convert the video.');
+				}
+			}
+
+			uploadedFile.description = fields.description;
+
+			delete fields.description;
+
+			await sendFileMessage(this.userId, { roomId: this.urlParams.rid, file: uploadedFile, msgData: fields });
+
+			const message = await Messages.getMessageByFileIdAndUsername(uploadedFile._id, this.userId);
+
 			return API.v1.success({
 				message,
 			});
@@ -274,10 +296,17 @@ API.v1.addRoute(
 				return API.v1.unauthorized();
 			}
 
-			const file = await Uploads.findOneById(this.urlParams.fileId);
+			let file = await Uploads.findOneById(this.urlParams.fileId);
 
 			if (!file) {
 				throw new Meteor.Error('invalid-file');
+			}
+
+			if (settings.get<boolean>('FileUpload_Video_Conversion_Enabled') && file.typeGroup === 'video') {
+				file = await convertVideo(file);
+				if (file == null) {
+					return API.v1.failure('Failed to convert the video.');
+				}
 			}
 
 			file.description = this.bodyParams.description;
@@ -289,7 +318,7 @@ API.v1.addRoute(
 				{ parseAttachmentsForE2EE: false },
 			);
 
-			await Uploads.confirmTemporaryFile(this.urlParams.fileId, this.userId);
+			await Uploads.confirmTemporaryFile(file._id, this.userId);
 
 			const message = await Messages.getMessageByFileIdAndUsername(file._id, this.userId);
 

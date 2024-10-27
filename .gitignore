@@ -55,3 +55,4 @@ yarn-error.log*
 
 data/
 registration.yaml
+node_modules
