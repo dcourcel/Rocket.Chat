@@ -1,4 +1,4 @@
-import type { IMessage, IRoom, IUser, RoomAdminFieldsType, IUpload, IE2EEMessage } from '@rocket.chat/core-typings';
+import type { IMessage, IRoom, IUser, RoomAdminFieldsType, IUpload, IE2EEMessage, ITeam } from '@rocket.chat/core-typings';
 
 import type { PaginatedRequest } from '../helpers/PaginatedRequest';
 import type { PaginatedResult } from '../helpers/PaginatedResult';
@@ -447,6 +447,21 @@ const GETRoomsNameExistsSchema = {
 
 export const isGETRoomsNameExists = ajv.compile<GETRoomsNameExists>(GETRoomsNameExistsSchema);
 
+type RoomsIsMemberProps = { roomId: string } & ({ username: string } | { userId: string });
+
+const RoomsIsMemberPropsSchema = {
+	type: 'object',
+	properties: {
+		roomId: { type: 'string', minLength: 1 },
+		userId: { type: 'string', minLength: 1 },
+		username: { type: 'string', minLength: 1 },
+	},
+	oneOf: [{ required: ['roomId', 'userId'] }, { required: ['roomId', 'username'] }],
+	additionalProperties: false,
+};
+
+export const isRoomsIsMemberProps = ajv.compile<RoomsIsMemberProps>(RoomsIsMemberPropsSchema);
+
 export type Notifications = {
 	disableNotifications: string;
 	muteGroupMentions: string;
@@ -611,6 +626,8 @@ export type RoomsEndpoints = {
 	'/v1/rooms.info': {
 		GET: (params: RoomsInfoProps) => {
 			room: IRoom | undefined;
+			parent?: Pick<IRoom, '_id' | 'name' | 'fname' | 't' | 'prid' | 'u' | 'sidepanel'>;
+			team?: Pick<ITeam, 'name' | 'roomId' | 'type' | '_id'>;
 		};
 	};
 
@@ -728,6 +745,10 @@ export type RoomsEndpoints = {
 		GET: (params: RoomsGetDiscussionsProps) => PaginatedResult<{
 			discussions: IRoom[];
 		}>;
+	};
+
+	'/v1/rooms.isMember': {
+		GET: (params: RoomsIsMemberProps) => { isMember: boolean };
 	};
 
 	'/v1/rooms.muteUser': {

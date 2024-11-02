@@ -23,6 +23,7 @@ import type {
 	MessageMention,
 	OmnichannelSourceType,
 } from '@rocket.chat/core-typings';
+import type { Updater } from '@rocket.chat/models';
 import type { FilterOperators } from 'mongodb';
 
 import type { ILoginAttempt } from '../app/authentication/server/ILoginAttempt';
@@ -49,7 +50,8 @@ interface EventLikeCallbackSignatures {
 	'afterDeleteUser': (user: IUser) => void;
 	'afterFileUpload': (params: { user: IUser; room: IRoom; message: IMessage }) => void;
 	'afterRoomNameChange': (params: { rid: string; name: string; oldName: string }) => void;
-	'afterSaveMessage': (message: IMessage, room: IRoom, uid?: string) => void;
+	'afterSaveMessage': (message: IMessage, params: { room: IRoom; uid?: string; roomUpdater?: Updater<IRoom> }) => void;
+	'afterOmnichannelSaveMessage': (message: IMessage, constant: { room: IOmnichannelRoom; roomUpdater: Updater<IOmnichannelRoom> }) => void;
 	'livechat.removeAgentDepartment': (params: { departmentId: ILivechatDepartmentRecord['_id']; agentsId: ILivechatAgent['_id'][] }) => void;
 	'livechat.saveAgentDepartment': (params: { departmentId: ILivechatDepartmentRecord['_id']; agentsId: ILivechatAgent['_id'][] }) => void;
 	'livechat.closeRoom': (params: { room: IOmnichannelRoom; options: CloseRoomParams['options'] }) => void;
@@ -223,6 +225,7 @@ type ChainedCallbackSignatures = {
 	'unarchiveRoom': (room: IRoom) => void;
 	'roomAvatarChanged': (room: IRoom) => void;
 	'beforeGetMentions': (mentionIds: string[], teamMentions: MessageMention[]) => Promise<string[]>;
+	'livechat.manageDepartmentUnit': (params: { userId: string; departmentId: string; unitId?: string }) => void;
 };
 
 export type Hook =
@@ -245,6 +248,7 @@ export type Hook =
 	| 'livechat.offlineMessage'
 	| 'livechat.onCheckRoomApiParams'
 	| 'livechat.onLoadConfigApi'
+	| 'livechat.manageDepartmentUnit'
 	| 'loginPageStateChange'
 	| 'mapLDAPUserData'
 	| 'onCreateUser'
@@ -252,10 +256,8 @@ export type Hook =
 	| 'onValidateLogin'
 	| 'openBroadcast'
 	| 'renderNotification'
-	| 'setReaction'
 	| 'streamMessage'
 	| 'streamNewMessage'
-	| 'unsetReaction'
 	| 'userAvatarSet'
 	| 'userConfirmationEmailRequested'
 	| 'userForgotPasswordEmailRequested'

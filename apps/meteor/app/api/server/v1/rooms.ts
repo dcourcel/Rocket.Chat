@@ -1,13 +1,14 @@
-import { Media } from '@rocket.chat/core-services';
+import { Media, Team } from '@rocket.chat/core-services';
 import type { IRoom, IUpload } from '@rocket.chat/core-typings';
-import { Messages, Rooms, Users, Uploads } from '@rocket.chat/models';
+import { Messages, Rooms, Users, Uploads, Subscriptions } from '@rocket.chat/models';
 import type { Notifications } from '@rocket.chat/rest-typings';
 import {
 	isGETRoomsNameExists,
-	isRoomsCleanHistoryProps,
 	isRoomsImagesProps,
 	isRoomsMuteUnmuteUserProps,
 	isRoomsExportProps,
+	isRoomsIsMemberProps,
+	isRoomsCleanHistoryProps,
 } from '@rocket.chat/rest-typings';
 import { Meteor } from 'meteor/meteor';
  
@@ -402,7 +403,19 @@ API.v1.addRoute(
 				return API.v1.failure('not-allowed', 'Not Allowed');
 			}
 
-			return API.v1.success({ room: (await Rooms.findOneByIdOrName(room._id, { projection: fields })) ?? undefined });
+			const discussionParent =
+				room.prid &&
+				(await Rooms.findOneById<Pick<IRoom, 'name' | 'fname' | 't' | 'prid' | 'u'>>(room.prid, {
+					projection: { name: 1, fname: 1, t: 1, prid: 1, u: 1, sidepanel: 1 },
+				}));
+			const { team, parentRoom } = await Team.getRoomInfo(room);
+			const parent = discussionParent || parentRoom;
+
+			return API.v1.success({
+				room: (await Rooms.findOneByIdOrName(room._id, { projection: fields })) ?? undefined,
+				...(team && { team }),
+				...(parent && { parent }),
+			});
 		},
 	},
 );
@@ -771,6 +784,36 @@ API.v1.addRoute(
 			}
 
 			return API.v1.failure();
+		},
+	},
+);
+
+API.v1.addRoute(
+	'rooms.isMember',
+	{
+		authRequired: true,
+		validateParams: isRoomsIsMemberProps,
+	},
+	{
+		async get() {
+			const { roomId, userId, username } = this.queryParams;
+			const [room, user] = await Promise.all([
+				findRoomByIdOrName({
+					params: { roomId },
+				}) as Promise<IRoom>,
+				Users.findOneByIdOrUsername(userId || username),
+			]);
+
+			if (!user?._id) {
+				return API.v1.failure('error-user-not-found');
+			}
+
+			if (await canAccessRoomAsync(room, { _id: this.user._id })) {
+				return API.v1.success({
+					isMember: (await Subscriptions.countByRoomIdAndUserId(room._id, user._id)) > 0,
+				});
+			}
+			return API.v1.unauthorized();
 		},
 	},
 );
