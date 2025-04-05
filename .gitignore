@@ -29,6 +29,7 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+storybook-static
 # turbo
 .turbo
 
@@ -55,4 +56,6 @@ yarn-error.log*
 
 data/
 registration.yaml
-node_modules
+
+storybook-static
+development/tempo-data/

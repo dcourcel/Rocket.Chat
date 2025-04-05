@@ -1,18 +1,24 @@
-FROM debian:12.5
+ARG DENO_VERSION="1.37.1"
+
+FROM denoland/deno:bin-${DENO_VERSION} AS deno
+
+FROM node:22.13.1-bookworm-slim
+
 ARG userid=1000
 ARG groupid=1000
 
 EXPOSE 3000
 
+COPY --from=deno /deno /bin/deno
+
 RUN if ! cat /etc/passwd | grep ":$userid:" > /dev/null; then addgroup --gid $groupid dev && useradd -m --home-dir /home/dev --shell /bin/bash --uid $userid --gid $groupid dev; fi
 
-RUN apt-get update && apt-get -y --no-install-recommends install g++ build-essential ca-certificates python3 curl git procps handbrake-cli
+RUN apt-get update && apt-get -y --no-install-recommends install fontconfig g++ build-essential ca-certificates python3 curl git procps handbrake-cli
 
-RUN cd ~ && curl -o mongodb-mongosh_2.2.6_amd64.deb https://downloads.mongodb.com/compass/mongodb-mongosh_2.2.6_amd64.deb && dpkg --install mongodb-mongosh_2.2.6_amd64.deb && rm mongodb-mongosh_2.2.6_amd64.deb
+RUN cd ~ && curl -o mongodb-mongosh_2.4.2_amd64.deb https://downloads.mongodb.com/compass/mongodb-mongosh_2.4.2_amd64.deb && dpkg --install mongodb-mongosh_2.4.2_amd64.deb && rm mongodb-mongosh_2.4.2_amd64.deb
 
-RUN cd ~ && curl -s https://nodejs.org/dist/latest-v14.x/node-v14.21.3-linux-x64.tar.gz | tar -xz && cp -ar "$(ls -1 | grep node | head -n 1)"/* /usr/local && rm -r $(ls -1 | grep node | head -n 1)
-
-RUN npm install --global yarn
+# No need since the node image contains a yarn version.
+#RUN npm install --global yarn
 
 USER $userid
 
