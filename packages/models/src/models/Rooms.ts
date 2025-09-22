@@ -676,10 +676,6 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.updateOne({ _id: roomId }, { $set: { name } });
 	}
 
-	setSidepanelById(roomId: IRoom['_id'], sidepanel: IRoom['sidepanel']): Promise<UpdateResult> {
-		return this.updateOne({ _id: roomId }, { $set: { sidepanel } });
-	}
-
 	setFnameById(_id: IRoom['_id'], fname: IRoom['fname']): Promise<UpdateResult> {
 		const query: Filter<IRoom> = { _id };
 
@@ -741,7 +737,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 	}
 
 	countByType(t: IRoom['t']): Promise<number> {
-		return this.col.countDocuments({ t });
+		return this.countDocuments({ t });
 	}
 
 	findPaginatedByNameOrFNameAndRoomIdsIncludingTeamRooms(
@@ -873,7 +869,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			callStatus: { $exists: true },
 		};
 
-		return this.col.countDocuments(query);
+		return this.countDocuments(query);
 	}
 
 	async findBiggestFederatedRoomInNumberOfUsers(options?: FindOptions<IRoom>): Promise<IRoom | undefined> {
@@ -904,7 +900,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 	}
 
 	async countFederatedRooms(): Promise<number> {
-		return this.col.countDocuments({ federated: true });
+		return this.countDocuments({ federated: true });
 	}
 
 	incMsgCountById(_id: IRoom['_id'], inc = 1): Promise<UpdateResult> {
@@ -1997,7 +1993,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 	}
 
 	countDiscussions(): Promise<number> {
-		return this.col.countDocuments({ prid: { $exists: true } });
+		return this.countDocuments({ prid: { $exists: true } });
 	}
 
 	setOTRForDMByRoomID(rid: IRoom['_id']): Promise<UpdateResult> {

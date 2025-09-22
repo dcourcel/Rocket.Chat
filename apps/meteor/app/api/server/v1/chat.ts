@@ -2,6 +2,7 @@ import { Message } from '@rocket.chat/core-services';
 import type { IMessage, IThreadMainMessage } from '@rocket.chat/core-typings';
 import { Messages, Users, Rooms, Subscriptions } from '@rocket.chat/models';
 import {
+	ajv,
 	isChatReportMessageProps,
 	isChatGetURLPreviewProps,
 	isChatUpdateProps,
@@ -9,7 +10,6 @@ import {
 	isChatDeleteProps,
 	isChatSyncMessagesProps,
 	isChatGetMessageProps,
-	isChatPinMessageProps,
 	isChatPostMessageProps,
 	isChatSearchProps,
 	isChatSendMessageProps,
@@ -29,11 +29,14 @@ import {
 	isChatSyncThreadMessagesProps,
 	isChatGetStarredMessagesProps,
 	isChatGetDiscussionsProps,
+	validateBadRequestErrorResponse,
+	validateUnauthorizedErrorResponse,
 } from '@rocket.chat/rest-typings';
 import { escapeRegExp } from '@rocket.chat/string-helpers';
 import { Meteor } from 'meteor/meteor';
 
 import { reportMessage } from '../../../../server/lib/moderation/reportMessage';
+import { ignoreUser } from '../../../../server/methods/ignoreUser';
 import { messageSearch } from '../../../../server/methods/messageSearch';
 import { getMessageHistory } from '../../../../server/publications/messages';
 import { roomAccessAttributes } from '../../../authorization/server';
@@ -42,15 +45,20 @@ import { canSendMessageAsync } from '../../../authorization/server/functions/can
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { deleteMessageValidatingPermission } from '../../../lib/server/functions/deleteMessage';
 import { processWebhookMessage } from '../../../lib/server/functions/processWebhookMessage';
+import { getSingleMessage } from '../../../lib/server/methods/getSingleMessage';
 import { executeSendMessage } from '../../../lib/server/methods/sendMessage';
 import { executeUpdateMessage } from '../../../lib/server/methods/updateMessage';
 import { applyAirGappedRestrictionsValidation } from '../../../license/server/airGappedRestrictionsWrapper';
-import { pinMessage } from '../../../message-pin/server/pinMessage';
+import { pinMessage, unpinMessage } from '../../../message-pin/server/pinMessage';
+import { starMessage } from '../../../message-star/server/starMessage';
 import { OEmbed } from '../../../oembed/server/server';
 import { executeSetReaction } from '../../../reactions/server/setReaction';
 import { settings } from '../../../settings/server';
+import { followMessage } from '../../../threads/server/methods/followMessage';
+import { unfollowMessage } from '../../../threads/server/methods/unfollowMessage';
 import { MessageTypes } from '../../../ui-utils/server';
 import { normalizeMessagesForUser } from '../../../utils/server/lib/normalizeMessagesForUser';
+import type { ExtractRoutesFromAPI } from '../ApiClass';
 import { API } from '../api';
 import { getPaginationItems } from '../helpers/getPaginationItems';
 import { findDiscussionsFromRoom, findMentionedMessages, findStarredMessages } from '../lib/messages';
@@ -148,7 +156,11 @@ API.v1.addRoute(
 	},
 	{
 		async get() {
-			const msg = await Meteor.callAsync('getSingleMessage', this.queryParams.msgId);
+			if (!this.queryParams.msgId) {
+				return API.v1.failure('The "msgId" query parameter must be provided.');
+			}
+
+			const msg = await getSingleMessage(this.userId, this.queryParams.msgId);
 
 			if (!msg) {
 				return API.v1.failure();
@@ -163,25 +175,60 @@ API.v1.addRoute(
 	},
 );
 
-API.v1.addRoute(
-	'chat.pinMessage',
-	{ authRequired: true, validateParams: isChatPinMessageProps },
-	{
-		async post() {
-			const msg = await Messages.findOneById(this.bodyParams.messageId);
+type ChatPinMessage = {
+	messageId: IMessage['_id'];
+};
 
-			if (!msg) {
-				throw new Meteor.Error('error-message-not-found', 'The provided "messageId" does not match any existing message.');
-			}
-
-			const pinnedMessage = await pinMessage(msg, this.userId);
-
-			const [message] = await normalizeMessagesForUser([pinnedMessage], this.userId);
-
-			return API.v1.success({
-				message,
-			});
+const ChatPinMessageSchema = {
+	type: 'object',
+	properties: {
+		messageId: {
+			type: 'string',
+			minLength: 1,
 		},
+	},
+	required: ['messageId'],
+	additionalProperties: false,
+};
+
+const isChatPinMessageProps = ajv.compile<ChatPinMessage>(ChatPinMessageSchema);
+
+const chatPinMessageEndpoints = API.v1.post(
+	'chat.pinMessage',
+	{
+		authRequired: true,
+		body: isChatPinMessageProps,
+		response: {
+			400: validateBadRequestErrorResponse,
+			401: validateUnauthorizedErrorResponse,
+			200: ajv.compile<{ message: IMessage }>({
+				type: 'object',
+				properties: {
+					message: { $ref: '#/components/schemas/IMessage' },
+					success: {
+						type: 'boolean',
+						enum: [true],
+					},
+				},
+				required: ['message', 'success'],
+				additionalProperties: false,
+			}),
+		},
+	},
+	async function action() {
+		const msg = await Messages.findOneById(this.bodyParams.messageId);
+
+		if (!msg) {
+			throw new Meteor.Error('error-message-not-found', 'The provided "messageId" does not match any existing message.');
+		}
+
+		const pinnedMessage = await pinMessage(msg, this.userId);
+
+		const [message] = await normalizeMessagesForUser([pinnedMessage], this.userId);
+
+		return API.v1.success({
+			message,
+		});
 	},
 );
 
@@ -207,7 +254,7 @@ API.v1.addRoute(
 
 			const messageReturn = (await applyAirGappedRestrictionsValidation(() => processWebhookMessage(this.bodyParams, this.user)))[0];
 
-			if (!messageReturn) {
+			if (!messageReturn?.message) {
 				return API.v1.failure('unknown-error');
 			}
 
@@ -289,7 +336,7 @@ API.v1.addRoute(
 				throw new Meteor.Error('error-message-not-found', 'The provided "messageId" does not match any existing message.');
 			}
 
-			await Meteor.callAsync('starMessage', {
+			await starMessage(this.userId, {
 				_id: msg._id,
 				rid: msg.rid,
 				starred: true,
@@ -311,7 +358,7 @@ API.v1.addRoute(
 				throw new Meteor.Error('error-message-not-found', 'The provided "messageId" does not match any existing message.');
 			}
 
-			await Meteor.callAsync('unpinMessage', msg);
+			await unpinMessage(this.userId, msg);
 
 			return API.v1.success();
 		},
@@ -329,7 +376,7 @@ API.v1.addRoute(
 				throw new Meteor.Error('error-message-not-found', 'The provided "messageId" does not match any existing message.');
 			}
 
-			await Meteor.callAsync('starMessage', {
+			await starMessage(this.userId, {
 				_id: msg._id,
 				rid: msg.rid,
 				starred: false,
@@ -366,7 +413,7 @@ API.v1.addRoute(
 						_id: msg._id,
 						msg: msgFromBody,
 						rid: msg.rid,
-						customFields: this.bodyParams.customFields as Record<string, any> | undefined,
+						...(this.bodyParams.customFields && { customFields: this.bodyParams.customFields }),
 					},
 					this.bodyParams.previewUrls,
 				),
@@ -437,7 +484,15 @@ API.v1.addRoute(
 
 			ignore = typeof ignore === 'string' ? /true|1/.test(ignore) : ignore;
 
-			await Meteor.callAsync('ignoreUser', { rid, userId, ignore });
+			if (!rid?.trim()) {
+				throw new Meteor.Error('error-room-id-param-not-provided', 'The required "rid" param is missing.');
+			}
+
+			if (!userId?.trim()) {
+				throw new Meteor.Error('error-user-id-param-not-provided', 'The required "userId" param is missing.');
+			}
+
+			await ignoreUser(this.userId, { rid, userId, ignore });
 
 			return API.v1.success();
 		},
@@ -685,7 +740,11 @@ API.v1.addRoute(
 		async post() {
 			const { mid } = this.bodyParams;
 
-			await Meteor.callAsync('followMessage', { mid });
+			if (!mid) {
+				throw new Meteor.Error('The required "mid" body param is missing.');
+			}
+
+			await followMessage(this.userId, { mid });
 
 			return API.v1.success();
 		},
@@ -699,7 +758,11 @@ API.v1.addRoute(
 		async post() {
 			const { mid } = this.bodyParams;
 
-			await Meteor.callAsync('unfollowMessage', { mid });
+			if (!mid) {
+				throw new Meteor.Error('The required "mid" body param is missing.');
+			}
+
+			await unfollowMessage(this.userId, { mid });
 
 			return API.v1.success();
 		},
@@ -820,3 +883,12 @@ API.v1.addRoute(
 		},
 	},
 );
+
+type ChatPinMessageEndpoints = ExtractRoutesFromAPI<typeof chatPinMessageEndpoints>;
+
+export type ChatEndpoints = ChatPinMessageEndpoints;
+
+declare module '@rocket.chat/rest-typings' {
+	// eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-empty-interface
+	interface Endpoints extends ChatPinMessageEndpoints {}
+}
