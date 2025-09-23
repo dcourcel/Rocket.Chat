@@ -9389,7 +9389,7 @@ __metadata:
   peerDependencies:
     "@rocket.chat/layout": "*"
     "@rocket.chat/tools": 0.2.3
-    "@rocket.chat/ui-contexts": 22.0.0-rc.6
+    "@rocket.chat/ui-contexts": 22.0.0
     "@tanstack/react-query": "*"
     react: "*"
     react-hook-form: "*"
@@ -13678,6 +13678,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ansi-escape-sequences@npm:^5.1.2":
+  version: 5.1.2
+  resolution: "ansi-escape-sequences@npm:5.1.2"
+  dependencies:
+    array-back: "npm:^4.0.0"
+  checksum: 10/778486bf6e98d0e07e62dc0e7bf56eeb7fe7b38fa3e7e65461d01cde82ad5771c609ca5a88132569ba405055d79c49d89df37b6738e642dc6a6100c5085e8a43
+  languageName: node
+  linkType: hard
+
 "ansi-escapes@npm:^4.2.1, ansi-escapes@npm:^4.3.2":
   version: 4.3.2
   resolution: "ansi-escapes@npm:4.3.2"
@@ -13912,6 +13921,20 @@ __metadata:
   version: 5.3.2
   resolution: "aria-query@npm:5.3.2"
   checksum: 10/b2fe9bc98bd401bc322ccb99717c1ae2aaf53ea0d468d6e7aebdc02fac736e4a99b46971ee05b783b08ade23c675b2d8b60e4a1222a95f6e27bc4d2a0bfdcc03
+  languageName: node
+  linkType: hard
+
+"array-back@npm:^3.0.1, array-back@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "array-back@npm:3.1.0"
+  checksum: 10/7205004fcd0f9edd926db921af901b083094608d5b265738d0290092f9822f73accb468e677db74c7c94ef432d39e5ed75a7b1786701e182efb25bbba9734209
+  languageName: node
+  linkType: hard
+
+"array-back@npm:^4.0.0":
+  version: 4.0.2
+  resolution: "array-back@npm:4.0.2"
+  checksum: 10/f30603270771eeb54e5aad5f54604c62b3577a18b6db212a7272b2b6c32049121b49431f656654790ed1469411e45f387e7627c0de8fd0515995cc40df9b9294
   languageName: node
   linkType: hard
 
@@ -20389,6 +20412,15 @@ __metadata:
   bin:
     find-process: bin/find-process.js
   checksum: 10/cda45cfb3f52cbc7f643a465a8bffc19e2a3ac49ec5aa74e9b18ed2e4d6d62e370443d38c5fdd3de6b30b232fda51db1d74c2574d70d28e6c896d49df3bc3bcd
+  languageName: node
+  linkType: hard
+
+"find-replace@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "find-replace@npm:3.0.0"
+  dependencies:
+    array-back: "npm:^3.0.1"
+  checksum: 10/6b04bcfd79027f5b84aa1dfe100e3295da989bdac4b4de6b277f4d063e78f5c9e92ebc8a1fec6dd3b448c924ba404ee051cc759e14a3ee3e825fa1361025df08
   languageName: node
   linkType: hard
 
@@ -27386,6 +27418,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"node-version-matches@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "node-version-matches@npm:2.0.1"
+  dependencies:
+    semver: "npm:^6.3.0"
+  checksum: 10/b61268aeca884c6cc113467556e693977ebc2f4c774ad90d516edd2eb4832cf39d4239d49451a4933d74d8efbae9a99becbbd2fe1d7acf7a0557edd8665c9d6a
+  languageName: node
+  linkType: hard
+
 "nodemailer@npm:7.0.3":
   version: 7.0.3
   resolution: "nodemailer@npm:7.0.3"
@@ -27727,6 +27768,13 @@ __metadata:
   version: 0.11.8
   resolution: "object-path@npm:0.11.8"
   checksum: 10/cbc41515ff97aa7515bd93a3d93d5b7307c95413345d83c66c60b7618429cfc935ff4049192c96701eeeb33a78678b15ee97b5fe0857e9eca4fcd7507dfafd36
+  languageName: node
+  linkType: hard
+
+"object-to-spawn-args@npm:^2.0.0":
+  version: 2.0.1
+  resolution: "object-to-spawn-args@npm:2.0.1"
+  checksum: 10/845e75613d973fe92f04142589535175673fe2349d9a5c2f55fb3046e464626cf3fc58a601a0843d3b498128b7b674d1663dd1833feab40584f136762e183add
   languageName: node
   linkType: hard
 
@@ -35113,6 +35161,13 @@ __metadata:
   bin:
     typia: lib/executable/typia.js
   checksum: 10/1f0b260402900b46225af7bba1110399a21a9276122a306b34448a4d6f9de12035857f520baf1ee27a663274835a85e6f9cdeb856c866e437b544b87164d48f9
+  languageName: node
+  linkType: hard
+
+"typical@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "typical@npm:4.0.0"
+  checksum: 10/aefe2c24b025cda22534ae2594df4a1df5db05b5fe3692890fd51db741ca4f18937a149f968b8d56d9a7b0756e7cd8843b1907bea21987ff4a06619c54d5a575
   languageName: node
   linkType: hard
 
