@@ -4,14 +4,7 @@ import type { IMessage } from './IMessage';
 import type { IOmnichannelServiceLevelAgreements } from './IOmnichannelServiceLevelAgreements';
 import type { IRocketChatRecord } from './IRocketChatRecord';
 import type { IOmnichannelRoom, OmnichannelSourceType } from './IRoom';
-import type { ISubscription } from './ISubscription';
 import type { SelectedAgent } from './omnichannel/routing';
-
-export interface IInquiry {
-	_id: string;
-	_updatedAt?: Date;
-	department?: string;
-}
 
 export enum LivechatInquiryStatus {
 	VERIFYING = 'verifying',
@@ -61,7 +54,12 @@ export interface ILivechatInquiryRecord extends IRocketChatRecord {
 	estimatedWaitingTimeQueue: IOmnichannelServiceLevelAgreements['dueTimeInMinutes'];
 }
 
-export const isLivechatInquiryRecord = (record: Partial<ISubscription>): record is ILivechatInquiryRecord => 'status' in record;
+export const isLivechatInquiryRecord = (record: unknown): record is ILivechatInquiryRecord =>
+	typeof record === 'object' &&
+	record !== null &&
+	'status' in record &&
+	typeof record.status === 'string' &&
+	['verifying', 'queued', 'taken', 'ready', 'open'].includes(record.status);
 
 export type InquiryWithAgentInfo = Pick<ILivechatInquiryRecord, '_id' | 'rid' | 'name' | 'ts' | 'status' | 'department' | 'v'> & {
 	position?: number;

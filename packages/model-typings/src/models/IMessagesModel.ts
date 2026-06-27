@@ -47,8 +47,6 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 		options?: FindOptions<IMessage>,
 	): FindPaginated<FindCursor<IMessage>>;
 
-	findDiscussionsByRoom(rid: IRoom['_id'], options?: FindOptions<IMessage>): FindCursor<IMessage>;
-
 	findDiscussionsByRoomAndText(rid: IRoom['_id'], text: string, options?: FindOptions<IMessage>): FindPaginated<FindCursor<IMessage>>;
 
 	findAllNumberOfTransferredRooms(p: {
@@ -70,7 +68,6 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 	getTotalOfMessagesSentByDate(params: { start: Date; end: Date; options?: any }): Promise<any[]>;
 
 	findLivechatClosedMessages(rid: IRoom['_id'], searchTerm?: string, options?: FindOptions<IMessage>): FindPaginated<FindCursor<IMessage>>;
-	findLivechatMessages(rid: IRoom['_id'], options?: FindOptions<IMessage>): FindCursor<IMessage>;
 	findLivechatMessagesWithoutTypes(
 		rid: IRoom['_id'],
 		ignoredTypes: IMessage['t'][],
@@ -81,13 +78,7 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 
 	countRoomsWithPinnedMessages(options: AggregateOptions): Promise<number>;
 
-	findPinned(options?: FindOptions<IMessage>): FindCursor<IMessage>;
-
-	findStarred(options?: FindOptions<IMessage>): FindCursor<IMessage>;
-
 	setBlocksById(_id: string, blocks: Required<IMessage>['blocks']): Promise<void>;
-
-	addBlocksById(_id: string, blocks: Required<IMessage>['blocks']): Promise<void>;
 
 	countRoomsWithMessageType(type: IMessage['t'], options: AggregateOptions): Promise<number>;
 
@@ -103,17 +94,12 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 
 	findOneByFederationId(federationEventId: string): Promise<IMessage | null>;
 
+	findLatestFederationThreadMessageByTmid(tmid: string, messageId: IMessage['_id']): Promise<IMessage | null>;
+
 	setFederationEventIdById(_id: string, federationEventId: string): Promise<void>;
 
 	removeByRoomId(roomId: IRoom['_id']): Promise<DeleteResult>;
 
-	findVisibleByRoomIdNotContainingTypesAndUsers(
-		roomId: IRoom['_id'],
-		types: IMessage['t'][],
-		users?: string[],
-		options?: FindOptions<IMessage>,
-		showThreadMessages?: boolean,
-	): FindCursor<IMessage>;
 	findVisibleByRoomIdNotContainingTypesBeforeTs(
 		roomId: IRoom['_id'],
 		types: IMessage['t'][],
@@ -137,7 +123,6 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 		extraData?: Partial<IMessage>,
 	): Promise<InsertOneResult<IMessage>>;
 	unsetReactions(messageId: string): Promise<UpdateResult>;
-	deleteOldOTRMessages(roomId: string, ts: Date): Promise<DeleteResult>;
 	addTranslations(messageId: string, translations: Record<string, string>, providerName: string): Promise<UpdateResult>;
 	addAttachmentTranslations(messageId: string, attachmentIndex: string, translations: Record<string, string>): Promise<UpdateResult>;
 	setImportFileRocketChatAttachment(
@@ -150,7 +135,7 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 	findByMention(username: string, options?: FindOptions<IMessage>): FindCursor<IMessage>;
 	findVisibleThreadByThreadId(tmid: string, options?: FindOptions<IMessage>): FindCursor<IMessage>;
 
-	findFilesByUserId(userId: string, options?: FindOptions<IMessage>): FindCursor<Pick<IMessage, 'file'>>;
+	findFilesByUserId(userId: string, options?: FindOptions<IMessage>): FindCursor<Pick<IMessage, 'file' | 'files'>>;
 	findVisibleByIds(ids: string[], options?: FindOptions<IMessage>): FindCursor<IMessage>;
 	findVisibleByRoomIdNotContainingTypes(
 		roomId: string,
@@ -175,7 +160,12 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 		users: string[],
 		options?: FindOptions<IMessage>,
 	): FindCursor<IMessage>;
-	findVisibleByRoomIdAfterTimestamp(roomId: string, timestamp: Date, options?: FindOptions<IMessage>): FindCursor<IMessage>;
+	findVisibleByRoomIdAfterTimestamp(
+		roomId: string,
+		timestamp: Date,
+		showThreadMessages?: boolean,
+		options?: FindOptions<IMessage>,
+	): FindCursor<IMessage>;
 	findVisibleByRoomIdBeforeTimestampNotContainingTypes(
 		roomId: string,
 		timestamp: Date,
@@ -202,7 +192,12 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 		showThreadMessages?: boolean,
 		inclusive?: boolean,
 	): Promise<number>;
-	findVisibleByRoomIdBeforeTimestamp(roomId: string, timestamp: Date, options?: FindOptions<IMessage>): FindCursor<IMessage>;
+	findVisibleByRoomIdBeforeTimestamp(
+		roomId: string,
+		timestamp: Date,
+		showThreadMessages?: boolean,
+		options?: FindOptions<IMessage>,
+	): FindCursor<IMessage>;
 	getLastTimestamp(options?: FindOptions<IMessage>): Promise<Date | undefined>;
 	findOneBySlackBotIdAndSlackTs(slackBotId: string, slackTs: Date): Promise<IMessage | null>;
 	findByRoomIdAndMessageIds(rid: string, messageIds: string[], options?: FindOptions<IMessage>): FindCursor<IMessage>;
@@ -238,6 +233,7 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 		newMessage: string,
 	): Promise<UpdateResult>;
 	unlinkUserId(userId: string, newUserId: string, newUsername: string, newNameAlias: string): Promise<UpdateResult | Document>;
+	setReceiptsArchivedById(ids: string[], archived: boolean): Promise<UpdateResult | Document>;
 	setSlackBotIdAndSlackTs(_id: string, slackBotId: string, slackTs: Date): Promise<UpdateResult>;
 	setMessageAttachments(_id: string, attachments: IMessage['attachments']): Promise<UpdateResult>;
 
@@ -272,10 +268,11 @@ export interface IMessagesModel extends IBaseModel<IMessage> {
 	setVisibleMessagesAsRead(rid: string, until: Date): Promise<UpdateResult | Document>;
 	getMessageByFileIdAndUsername(fileID: string, userId: string): Promise<IMessage | null>;
 	getMessageByFileId(fileID: string): Promise<IMessage | null>;
-	setThreadMessagesAsRead(tmid: string, until: Date): Promise<UpdateResult | Document>;
+	setThreadMessagesAsRead(rid: string, tmid: string, until: Date): Promise<UpdateResult | Document>;
 	updateRepliesByThreadId(tmid: string, replies: string[], ts: Date): Promise<UpdateResult>;
 	refreshDiscussionMetadata(room: Pick<IRoom, '_id' | 'msgs' | 'lm'>): Promise<null | WithId<IMessage>>;
 	findUnreadThreadMessagesByDate(
+		rid: string,
 		tmid: string,
 		userId: string,
 		after: Date,

@@ -1,10 +1,10 @@
 import { Box, Button, ButtonGroup, Margins, TextInput, Field, FieldLabel, FieldRow, FieldError, IconButton } from '@rocket.chat/fuselage';
+import { ContextualbarScrollableContent, ContextualbarFooter } from '@rocket.chat/ui-client';
 import { useToastMessageDispatch } from '@rocket.chat/ui-contexts';
 import type { ReactElement, ChangeEvent } from 'react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ContextualbarScrollableContent, ContextualbarFooter } from '../../../components/Contextualbar';
 import { useEndpointUploadMutation } from '../../../hooks/useEndpointUploadMutation';
 import { useSingleFileInput } from '../../../hooks/useSingleFileInput';
 
@@ -104,7 +104,7 @@ const AddCustomEmoji = ({ close, onChange, ...props }: AddCustomEmojiProps): Rea
 					{newEmojiPreview && (
 						<Box display='flex' flexDirection='row' mi='neg-x4' justifyContent='center'>
 							<Margins inline={4}>
-								<Box is='img' style={{ objectFit: 'contain' }} w='x120' h='x120' src={newEmojiPreview} />
+								<Box is='img' objectFit='contain' w='x120' h='x120' src={newEmojiPreview} />
 							</Margins>
 						</Box>
 					)}

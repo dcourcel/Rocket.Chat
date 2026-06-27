@@ -1,12 +1,12 @@
 import type { IMessage, IRoom, ISubscription } from '@rocket.chat/core-typings';
 import { Emitter } from '@rocket.chat/emitter';
-import { Meteor } from 'meteor/meteor';
 
 import { LegacyRoomManager } from '../../../app/ui-utils/client/lib/LegacyRoomManager';
 import { RoomHistoryManager } from '../../../app/ui-utils/client/lib/RoomHistoryManager';
 import { sdk } from '../../../app/utils/client/lib/SDKClient';
 import { withDebouncing } from '../../../lib/utils/highOrderFunctions';
 import { Messages } from '../../stores';
+import { getUserId } from '../user';
 
 export class ReadStateManager extends Emitter {
 	private rid: IRoom['_id'];
@@ -22,12 +22,6 @@ export class ReadStateManager extends Emitter {
 
 	public getRid() {
 		return this.rid;
-	}
-
-	// TODO: Use ref to get unreadMark
-	// private unreadMark?: HTMLElement;
-	private get unreadMark() {
-		return document.querySelector<HTMLElement>('.rcx-message-divider--unread');
 	}
 
 	public onUnreadStateChange = (callback: () => void): (() => void) => {
@@ -76,7 +70,10 @@ export class ReadStateManager extends Emitter {
 
 		const firstUnreadRecord = Messages.state.findFirst(
 			(record) =>
-				record.rid === this.subscription?.rid && record.ts.getTime() > this.subscription.ls.getTime() && record.u._id !== Meteor.userId(),
+				record.rid === this.subscription?.rid &&
+				record.ts.getTime() > (this.subscription.ls?.getTime() ?? 0) &&
+				record.u._id !== getUserId() &&
+				(!record.tmid || record.tshow === true),
 			(a, b) => a.ts.getTime() - b.ts.getTime(),
 		);
 
@@ -113,12 +110,10 @@ export class ReadStateManager extends Emitter {
 		};
 	};
 
-	private isUnreadMarkVisible(): boolean {
-		if (!this.unreadMark) {
-			return false;
-		}
+	private isUnreadMarkVisible: () => boolean = () => false;
 
-		return this.unreadMark.offsetTop > (this.unreadMark.offsetParent?.scrollTop || 0);
+	public setIsUnreadMarkVisibleCallback(callback: () => boolean) {
+		this.isUnreadMarkVisible = callback;
 	}
 
 	// This will only mark as read if the unread mark is visible
@@ -132,11 +127,11 @@ export class ReadStateManager extends Emitter {
 			return;
 		}
 
-		if (this.unreadMark && !this.isUnreadMarkVisible()) {
+		if (this.firstUnreadRecordId && this.isUnreadMarkVisible() === false) {
 			return;
 		}
 		// if there are unloaded unread messages, don't mark as read
-		if (RoomHistoryManager.getRoom(this.rid).unreadNotLoaded.get() > 0) {
+		if (RoomHistoryManager.getRoom(this.rid).unreadNotLoaded > 0) {
 			return;
 		}
 
@@ -158,7 +153,7 @@ export class ReadStateManager extends Emitter {
 		}
 
 		return sdk.rest.post('/v1/subscriptions.read', { rid: this.rid }).then(() => {
-			RoomHistoryManager.getRoom(this.rid).unreadNotLoaded.set(0);
+			RoomHistoryManager.updateRoom(this.rid, { unreadNotLoaded: 0 });
 		});
 	}
 }

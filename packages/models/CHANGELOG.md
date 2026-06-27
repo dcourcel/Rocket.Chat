@@ -1,5 +1,798 @@
 # @rocket.chat/models
 
+## 2.3.0
+
+### Minor Changes
+
+- ([#39617](https://github.com/RocketChat/Rocket.Chat/pull/39617)) Adds new API endpoints `custom-sounds.create` and `custom-sounds.update` to manage custom sounds with strict file validation for size and specific MIME types to ensure system compatibility.
+
+- ([#40397](https://github.com/RocketChat/Rocket.Chat/pull/40397)) Adds the `USE_ROOM_SEARCH_INDEX` environment variable. When set to `true`, the messages collection's text index is created as `{ rid: 1, msg: 'text' }` instead of the default `{ msg: 'text' }`. The compound shape lets per-room `$text` searches use `rid` as a prefix, dramatically reducing the portion of the index scanned on workspaces where global search is disabled.
+
+  The index is reconciled on every startup: if the existing text index already matches the desired shape, nothing happens; otherwise the stale text index is dropped and the desired one is recreated. Unsetting the variable on a later boot reverts to the default shape.
+
+### Patch Changes
+
+- ([#40524](https://github.com/RocketChat/Rocket.Chat/pull/40524)) Ensures OAuth tokens are cleaned up after user deactivation
+
+- ([#40496](https://github.com/RocketChat/Rocket.Chat/pull/40496)) Ensures that deactivated users have their login tokens cleaned up in users.deactivateidle
+
+- ([#40405](https://github.com/RocketChat/Rocket.Chat/pull/40405)) Security Hotfix (https://docs.rocket.chat/docs/security-fixes-and-updates)
+
+- <details><summary>Updated dependencies [f7d47dd3517ec14ca2ec5c3c95fcdf9e1e2fb8b0, 4c3984593017d59edd631bf8ae4f35f9d3c3db36, b6b04aadfcc8558f888b334e37c46a77e5816237, 4704bf81ca370f120af32185a7c55407a26f8514, 12897e25d0dc25b7373f5264d38f38a5a7444257, b1c2668b74bfb49ebaefe2f581b2f8be5d4d1dd6]:</summary>
+
+  - @rocket.chat/model-typings@2.3.0
+  - @rocket.chat/rest-typings@8.5.0
+  - @rocket.chat/core-typings@8.5.0
+  </details>
+
+## 2.3.0-rc.0
+
+### Minor Changes
+
+- ([#39760](https://github.com/RocketChat/Rocket.Chat/pull/39760)) ## Phishing-Resistant Multi-Factor Authentication
+
+  Introduces a more secure and reliable server-side OAuth authentication flow.
+
+  ### What’s New
+
+  - **Improved OAuth login security**
+    OAuth authentication now happens fully on the server, reducing the risk of token theft, phishing attacks, and client-side credential interception.
+  - **Built-in CSRF, state validation, and PKCE protection**
+    OAuth logins now include stronger protection against CSRF attacks, request tampering, and authorization code interception through secure state validation and PKCE support.
+  - **Improved two-step verification with OAuth logins**
+    Users with email or TOTP two-factor authentication enabled will now be asked to complete 2FA even when signing in with providers like Google, GitHub, GitLab, and others.
+  - **Improved mobile & desktop app login**
+    Mobile and desktop apps now support a smoother and more secure deep-link OAuth login flow.
+
+- ([#39617](https://github.com/RocketChat/Rocket.Chat/pull/39617)) Adds new API endpoints `custom-sounds.create` and `custom-sounds.update` to manage custom sounds with strict file validation for size and specific MIME types to ensure system compatibility.
+
+- ([#40397](https://github.com/RocketChat/Rocket.Chat/pull/40397)) Adds the `USE_ROOM_SEARCH_INDEX` environment variable. When set to `true`, the messages collection's text index is created as `{ rid: 1, msg: 'text' }` instead of the default `{ msg: 'text' }`. The compound shape lets per-room `$text` searches use `rid` as a prefix, dramatically reducing the portion of the index scanned on workspaces where global search is disabled.
+
+  The index is reconciled on every startup: if the existing text index already matches the desired shape, nothing happens; otherwise the stale text index is dropped and the desired one is recreated. Unsetting the variable on a later boot reverts to the default shape.
+
+### Patch Changes
+
+- ([#40524](https://github.com/RocketChat/Rocket.Chat/pull/40524)) Ensures OAuth tokens are cleaned up after user deactivation
+
+- ([#40496](https://github.com/RocketChat/Rocket.Chat/pull/40496)) Ensures that deactivated users have their login tokens cleaned up in users.deactivateidle
+
+- ([#40405](https://github.com/RocketChat/Rocket.Chat/pull/40405)) Security Hotfix (https://docs.rocket.chat/docs/security-fixes-and-updates)
+
+- <details><summary>Updated dependencies [f7d47dd3517ec14ca2ec5c3c95fcdf9e1e2fb8b0, 4c3984593017d59edd631bf8ae4f35f9d3c3db36, ae9f740d6af20557eac61b4af902c868b4132b49, b6b04aadfcc8558f888b334e37c46a77e5816237, 4704bf81ca370f120af32185a7c55407a26f8514, 12897e25d0dc25b7373f5264d38f38a5a7444257, b1c2668b74bfb49ebaefe2f581b2f8be5d4d1dd6]:</summary>
+
+  - @rocket.chat/model-typings@2.3.0-rc.0
+  - @rocket.chat/rest-typings@8.5.0-rc.0
+  - @rocket.chat/core-typings@8.5.0-rc.0
+
+## 2.2.2
+
+### Patch Changes
+
+- ([#40627](https://github.com/RocketChat/Rocket.Chat/pull/40627) by [@dionisio-bot](https://github.com/dionisio-bot)) Ensures OAuth tokens are cleaned up after user deactivation
+
+- ([#40559](https://github.com/RocketChat/Rocket.Chat/pull/40559) by [@dionisio-bot](https://github.com/dionisio-bot)) Ensures that deactivated users have their login tokens cleaned up in users.deactivateidle
+
+- <details><summary>Updated dependencies [b0c593db9bc0bbbb603e673ddcdc48aad4f4e721, f422eb613d8cae43dc1e44d71b6ecb5a0a9c5d92, 3a3f0e1103bd0b8aaf93c16300ed664aed7a67a1]:</summary>
+
+  - @rocket.chat/model-typings@2.2.2
+  - @rocket.chat/rest-typings@8.4.2
+  - @rocket.chat/core-typings@8.4.2
+    </details>
+  </details>
+
+## 2.2.1
+
+### Patch Changes
+
+- ([#40410](https://github.com/RocketChat/Rocket.Chat/pull/40410) by [@dionisio-bot](https://github.com/dionisio-bot)) Security Hotfix (https://docs.rocket.chat/docs/security-fixes-and-updates)
+
+- <details><summary>Updated dependencies [5b291c38600757482aaf261a02487abdf5f14007]:</summary>
+
+  - @rocket.chat/model-typings@2.2.1
+  - @rocket.chat/core-typings@8.4.1
+  - @rocket.chat/rest-typings@8.4.1
+  </details>
+
+## 2.2.0
+
+### Minor Changes
+
+- ([#40141](https://github.com/RocketChat/Rocket.Chat/pull/40141)) Adds a new REST endpoint to accept or reject media calls without an active media session
+
+- ([#39535](https://github.com/RocketChat/Rocket.Chat/pull/39535)) Adds externalIds field to livechat visitors for external platform identification.
+
+- ([#39495](https://github.com/RocketChat/Rocket.Chat/pull/39495)) Updates omnichannel routing so agents with `offline` status are always excluded from assignment. The `Livechat_enabled_when_agent_idle` setting now only affects agents with `away` status.
+
+### Patch Changes
+
+- ([#39246](https://github.com/RocketChat/Rocket.Chat/pull/39246)) Fixes an issue where messages appeared as unread even when all active users had read them. Read receipts now correctly ignore deactivated users.
+
+- ([#39905](https://github.com/RocketChat/Rocket.Chat/pull/39905)) Fixes array resorting when appending visitor emails/phones to ensure chat transcripts are sent to the correct registration email.
+
+- ([#40175](https://github.com/RocketChat/Rocket.Chat/pull/40175)) Fixes an issue where the Omnichannel routing system ignored the `Livechat_accept_chats_with_no_agents` setting. Now, offline agents are correctly considered for assignment when the setting allows it.
+
+- <details><summary>Updated dependencies [21cd54f87de5837fe6c999a44bd15be34b9fe905, 278b84f78360e53792a2e5d7620615039a0e15e9, 12c44d2db65af9f90c741da621164f5738fc19f5, 24b3671fe61b8b09c6a1b5dc6401b503b3fb92a0, 4e99ff6c1a99ac569cf444f9de9b5fe5ac3262b2, 8c0e16ca29b393cfa50b425520db48ba5a74f678, f4dfb8ddc2049692371aeb084110b5768151b5df]:</summary>
+
+  - @rocket.chat/model-typings@2.2.0
+  - @rocket.chat/core-typings@8.4.0
+  - @rocket.chat/rest-typings@8.4.0
+  </details>
+
+## 2.2.0-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/core-typings@8.4.0-rc.2
+  - @rocket.chat/rest-typings@8.4.0-rc.2
+  - @rocket.chat/model-typings@2.2.0-rc.2
+  </details>
+
+## 2.2.0-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/core-typings@8.4.0-rc.1
+  - @rocket.chat/rest-typings@8.4.0-rc.1
+  - @rocket.chat/model-typings@2.2.0-rc.1
+  </details>
+
+## 2.1.4
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.2
+  - @rocket.chat/model-typings@2.1.4
+  </details>
+
+## 2.1.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.1
+  - @rocket.chat/model-typings@2.1.3
+  </details>
+
+## 2.2.0-rc.0
+
+### Minor Changes
+
+- ([#40141](https://github.com/RocketChat/Rocket.Chat/pull/40141)) Adds a new REST endpoint to accept or reject media calls without an active media session
+
+- ([#39535](https://github.com/RocketChat/Rocket.Chat/pull/39535)) Adds externalIds field to livechat visitors for external platform identification.
+
+- ([#39495](https://github.com/RocketChat/Rocket.Chat/pull/39495)) Updates omnichannel routing so agents with `offline` status are always excluded from assignment. The `Livechat_enabled_when_agent_idle` setting now only affects agents with `away` status.
+
+### Patch Changes
+
+- ([#39246](https://github.com/RocketChat/Rocket.Chat/pull/39246)) Fixes an issue where messages appeared as unread even when all active users had read them. Read receipts now correctly ignore deactivated users.
+
+- ([#39905](https://github.com/RocketChat/Rocket.Chat/pull/39905)) Fixes array resorting when appending visitor emails/phones to ensure chat transcripts are sent to the correct registration email.
+
+- ([#40175](https://github.com/RocketChat/Rocket.Chat/pull/40175)) Fixes an issue where the Omnichannel routing system ignored the `Livechat_accept_chats_with_no_agents` setting. Now, offline agents are correctly considered for assignment when the setting allows it.
+
+- <details><summary>Updated dependencies [21cd54f87de5837fe6c999a44bd15be34b9fe905, 278b84f78360e53792a2e5d7620615039a0e15e9, 12c44d2db65af9f90c741da621164f5738fc19f5, 24b3671fe61b8b09c6a1b5dc6401b503b3fb92a0, 4e99ff6c1a99ac569cf444f9de9b5fe5ac3262b2, 8c0e16ca29b393cfa50b425520db48ba5a74f678, f4dfb8ddc2049692371aeb084110b5768151b5df]:</summary>
+
+  - @rocket.chat/model-typings@2.2.0-rc.0
+  - @rocket.chat/core-typings@8.4.0-rc.0
+  - @rocket.chat/rest-typings@8.4.0-rc.0
+  </details>
+
+## 2.1.2
+
+### Patch Changes
+
+- ([#39010](https://github.com/RocketChat/Rocket.Chat/pull/39010)) Fixes an authorization issue that allowed users to confirm uploads from other users
+
+- ([#39092](https://github.com/RocketChat/Rocket.Chat/pull/39092)) Fixes main channel scroll position changing when jumping to a thread message from search
+
+- ([#39087](https://github.com/RocketChat/Rocket.Chat/pull/39087)) Fixes race condition causing duplicate open livechat rooms per visitor token.
+
+- ([#38989](https://github.com/RocketChat/Rocket.Chat/pull/38989)) chore(eslint): Upgrades ESLint and its configuration
+
+- ([#39718](https://github.com/RocketChat/Rocket.Chat/pull/39718)) Fixes an issue where, sometimes, updatedAt was not being set during the subscription creation
+
+- <details><summary>Updated dependencies [602b20a8c570b895eb296ecfe39c9b7fcb12fabd, e2068892bf1ffc88b15ab71ad743cf84e5d31ed5, a4e3c1635d55ec4ce04cbde741426770e43581fb, 539659af22bc19880eda047dfc0b152472ccb65c, 5518503736b72674753e711ba4089d177ab988a5, a4341ec67d1f0413f30bbabfd292d1b0a41728b2, 40253146de8d8f83737e71b0ade7c67e0c295a28, 803b8075514de54c9ff34ba0c9aa3ee5fc3bbe61, 1361a1f4f1e3c0cc3f2a191cef8eccc12a714cde, 2a2701098536b32143003be8d267891978c708c9, 37acece030bc9f39bdaa86ab0130eb818332033e, d8baf395181b70fef9ce448eb509f65b66049615, ddc0ed34b03072362d166f1160104a9332b362e8, d83a1a9753464ee916845b3c88757bbcf76884a5, 4c2e444216efd514ab406fe8e9cd127ef971d566, 722df6f60bc86c51b204e28a39acb3dc8710bdeb, 78b3fe3ef20e3a545b84551ba3f85cb40e862ba7, 98a6c58a38c053c60db2b4d53a9df0e94fecf0ba, 29b453e1def8092a8d78c28736e2bfb24229717b, 39f2e87e1caa6842e69155f033205cfdc4767b9e, c117492ad90d291a361eedc929506f557495caf7, 7c7324184589a15bf3e67b4f0c1cc222f8d48db3]:</summary>
+
+  - @rocket.chat/model-typings@2.1.2
+  - @rocket.chat/rest-typings@8.3.0
+  - @rocket.chat/tracing@0.0.2
+  - @rocket.chat/random@1.2.3
+  - @rocket.chat/sha256@1.0.13
+  </details>
+
+## 2.1.2-rc.4
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.0-rc.4
+  - @rocket.chat/model-typings@2.1.2-rc.4
+  </details>
+
+## 2.1.2-rc.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.0-rc.3
+  - @rocket.chat/model-typings@2.1.2-rc.3
+  </details>
+
+## 2.1.2-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.0-rc.2
+  - @rocket.chat/model-typings@2.1.2-rc.2
+  </details>
+
+## 2.1.2-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.3.0-rc.1
+  - @rocket.chat/model-typings@2.1.2-rc.1
+  </details>
+
+## 2.1.2-rc.0
+
+### Patch Changes
+
+- ([#39010](https://github.com/RocketChat/Rocket.Chat/pull/39010)) Fixes an authorization issue that allowed users to confirm uploads from other users
+
+- ([#39092](https://github.com/RocketChat/Rocket.Chat/pull/39092)) Fixes main channel scroll position changing when jumping to a thread message from search
+
+- ([#39087](https://github.com/RocketChat/Rocket.Chat/pull/39087)) Fixes race condition causing duplicate open livechat rooms per visitor token.
+
+- ([#38989](https://github.com/RocketChat/Rocket.Chat/pull/38989)) chore(eslint): Upgrades ESLint and its configuration
+
+- ([#39718](https://github.com/RocketChat/Rocket.Chat/pull/39718)) Fixes an issue where, sometimes, updatedAt was not being set during the subscription creation
+
+- <details><summary>Updated dependencies [602b20a8c570b895eb296ecfe39c9b7fcb12fabd, e2068892bf1ffc88b15ab71ad743cf84e5d31ed5, a4e3c1635d55ec4ce04cbde741426770e43581fb, 539659af22bc19880eda047dfc0b152472ccb65c, 5518503736b72674753e711ba4089d177ab988a5, a4341ec67d1f0413f30bbabfd292d1b0a41728b2, 40253146de8d8f83737e71b0ade7c67e0c295a28, 803b8075514de54c9ff34ba0c9aa3ee5fc3bbe61, 1361a1f4f1e3c0cc3f2a191cef8eccc12a714cde, 2a2701098536b32143003be8d267891978c708c9, 37acece030bc9f39bdaa86ab0130eb818332033e, d8baf395181b70fef9ce448eb509f65b66049615, ddc0ed34b03072362d166f1160104a9332b362e8, d83a1a9753464ee916845b3c88757bbcf76884a5, 4c2e444216efd514ab406fe8e9cd127ef971d566, 722df6f60bc86c51b204e28a39acb3dc8710bdeb, 78b3fe3ef20e3a545b84551ba3f85cb40e862ba7, 98a6c58a38c053c60db2b4d53a9df0e94fecf0ba, 29b453e1def8092a8d78c28736e2bfb24229717b, 39f2e87e1caa6842e69155f033205cfdc4767b9e, c117492ad90d291a361eedc929506f557495caf7, 7c7324184589a15bf3e67b4f0c1cc222f8d48db3]:</summary>
+
+  - @rocket.chat/model-typings@2.1.2-rc.0
+  - @rocket.chat/rest-typings@8.3.0-rc.0
+  - @rocket.chat/tracing@0.0.2-rc.0
+  - @rocket.chat/random@1.2.3-rc.0
+  - @rocket.chat/sha256@1.0.13-rc.0
+  </details>
+
+## 2.1.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.2.1
+  - @rocket.chat/model-typings@2.1.1
+  </details>
+
+## 2.1.0
+
+### Minor Changes
+
+- ([#38173](https://github.com/RocketChat/Rocket.Chat/pull/38173)) Adds a new endpoint to delete uploaded files individually
+
+### Patch Changes
+
+- ([#37776](https://github.com/RocketChat/Rocket.Chat/pull/37776)) Prevents over-assignment of omnichannel agents beyond their max chats limit in microservices deployments by serializing agent assignment with explicit user-level locking.
+
+- ([#38376](https://github.com/RocketChat/Rocket.Chat/pull/38376)) Fix a validation issue in the `livechat/custom-fields.save` endpoint
+
+- ([#38265](https://github.com/RocketChat/Rocket.Chat/pull/38265)) Fixes endpoints `omnichannel/contacts.update` and `omnichannel/contacts.conflicts` where the contact manager field could not be cleared.
+
+- ([#38568](https://github.com/RocketChat/Rocket.Chat/pull/38568)) Adds automatic cleanup of statistics collection with 1-year retention via TTL index.
+
+- <details><summary>Updated dependencies [d3758a7d57ab602745369ef9d2ccdbf9271cf305, e57f15845e4df048dd2f08f11aa08215780a2c34, 88da141f3c2af6f91980c7ca8b8777161f99a068, 75d089ca40248af963d7cd2a8034c3c6de6b971e, 3b003e6b69c11b280d55bcc8db2f3e4ae7a4a573, 508b4a17d76dc1cd7d3a55bdba826216f51432e2]:</summary>
+
+  - @rocket.chat/model-typings@2.1.0
+  - @rocket.chat/rest-typings@8.2.0
+  </details>
+
+## 2.1.0-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.2.0-rc.2
+  - @rocket.chat/model-typings@2.1.0-rc.2
+  </details>
+
+## 2.1.0-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.2.0-rc.1
+  - @rocket.chat/model-typings@2.1.0-rc.1
+  </details>
+
+## 2.1.0-rc.0
+
+### Minor Changes
+
+- ([#38173](https://github.com/RocketChat/Rocket.Chat/pull/38173)) Adds a new endpoint to delete uploaded files individually
+
+### Patch Changes
+
+- ([#37776](https://github.com/RocketChat/Rocket.Chat/pull/37776)) Prevents over-assignment of omnichannel agents beyond their max chats limit in microservices deployments by serializing agent assignment with explicit user-level locking.
+
+- ([#38376](https://github.com/RocketChat/Rocket.Chat/pull/38376)) Fix a validation issue in the `livechat/custom-fields.save` endpoint
+
+- ([#38265](https://github.com/RocketChat/Rocket.Chat/pull/38265)) Fixes endpoints `omnichannel/contacts.update` and `omnichannel/contacts.conflicts` where the contact manager field could not be cleared.
+
+- ([#38568](https://github.com/RocketChat/Rocket.Chat/pull/38568)) Adds automatic cleanup of statistics collection with 1-year retention via TTL index.
+
+- <details><summary>Updated dependencies [d3758a7d57ab602745369ef9d2ccdbf9271cf305, e57f15845e4df048dd2f08f11aa08215780a2c34, 88da141f3c2af6f91980c7ca8b8777161f99a068, 75d089ca40248af963d7cd2a8034c3c6de6b971e, 3b003e6b69c11b280d55bcc8db2f3e4ae7a4a573, 508b4a17d76dc1cd7d3a55bdba826216f51432e2]:</summary>
+
+  - @rocket.chat/model-typings@2.1.0-rc.0
+  - @rocket.chat/rest-typings@8.2.0-rc.0
+  </details>
+
+## 2.0.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.1.1
+  - @rocket.chat/model-typings@2.0.3
+  </details>
+
+## 2.0.2
+
+### Patch Changes
+
+- ([#38183](https://github.com/RocketChat/Rocket.Chat/pull/38183)) Fixes `/sendEmailAttachment` to support sending multiple file attachments in a single email
+
+- ([#38079](https://github.com/RocketChat/Rocket.Chat/pull/38079)) Fixes a condition where deleting a message with multiple file attachments would not always delete all of those files
+
+- ([#37919](https://github.com/RocketChat/Rocket.Chat/pull/37919)) Makes roomsPerGuest exclude DMs when counting subscriptions, ensuring guest limits apply only to non-DM rooms as per expected behavior.
+
+- ([#38105](https://github.com/RocketChat/Rocket.Chat/pull/38105)) Fixes user deletion not removing thumbnails of images sent by the deleted user
+
+- <details><summary>Updated dependencies [f4fa393fccb6abefbe6fb6550563e8ca21fc792d, fd319d58a621d66c20029fd962ddb24a1a24ecc3, 5c3c52b1fc8b0bd52d4744614ad4d2b8e2e03937, 5fa150953b86ff36face25083ed49e8c97a8044d, 05c415b94cb91907de39a39c6d277579258f334e]:</summary>
+
+  - @rocket.chat/model-typings@2.0.2
+  - @rocket.chat/rest-typings@8.1.0
+  </details>
+
+## 2.0.2-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.1.0-rc.2
+  - @rocket.chat/model-typings@2.0.2-rc.2
+  </details>
+
+## 2.0.2-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies [fd319d58a621d66c20029fd962ddb24a1a24ecc3]:</summary>
+
+  - @rocket.chat/rest-typings@8.1.0-rc.1
+  - @rocket.chat/model-typings@2.0.1-rc.1
+  </details>
+
+## 2.0.2-rc.0
+
+### Patch Changes
+
+- ([#38183](https://github.com/RocketChat/Rocket.Chat/pull/38183)) Fixes `/sendEmailAttachment` to support sending multiple file attachments in a single email
+
+- ([#38079](https://github.com/RocketChat/Rocket.Chat/pull/38079)) Fixes a condition where deleting a message with multiple file attachments would not always delete all of those files
+
+- ([#37919](https://github.com/RocketChat/Rocket.Chat/pull/37919)) Makes roomsPerGuest exclude DMs when counting subscriptions, ensuring guest limits apply only to non-DM rooms as per expected behavior.
+
+- ([#38105](https://github.com/RocketChat/Rocket.Chat/pull/38105)) Fixes user deletion not removing thumbnails of images sent by the deleted user
+
+- <details><summary>Updated dependencies [f4fa393fccb6abefbe6fb6550563e8ca21fc792d, 5c3c52b1fc8b0bd52d4744614ad4d2b8e2e03937, 5fa150953b86ff36face25083ed49e8c97a8044d, 05c415b94cb91907de39a39c6d277579258f334e]:</summary>
+
+  - @rocket.chat/model-typings@2.0.1-rc.0
+  - @rocket.chat/rest-typings@8.1.0-rc.0
+  </details>
+
+## 2.0.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.1
+  - @rocket.chat/model-typings@2.0.1
+  </details>
+
+## 2.0.0
+
+### Major Changes
+
+- ([#37672](https://github.com/RocketChat/Rocket.Chat/pull/37672)) Removes deprecated VoIP from Omnichannel
+
+- ([#37672](https://github.com/RocketChat/Rocket.Chat/pull/37672)) Removes Deprecated FreeSwitch integration
+
+### Minor Changes
+
+- ([#37224](https://github.com/RocketChat/Rocket.Chat/pull/37224)) Enhance user's deactivated state handling to correctly distinguish between pending and deactivated users.
+
+- ([#37091](https://github.com/RocketChat/Rocket.Chat/pull/37091)) Adds Attribute Based Access Control (ABAC) for private channels & private teams.
+
+### Patch Changes
+
+- ([#37846](https://github.com/RocketChat/Rocket.Chat/pull/37846)) Fixes /v1/users.logout not marking user sessions as logged out, leaving stale sessions active.
+
+- <details><summary>Updated dependencies [347b8f973440f3e2239f79c00c2d9b430859eef2, b802430fbfdc7fa69a976468dc6dee6f3c4de26f, 872da49986436d2efa65fc42e416b45d706fd59c, ac11ea05ffadeca978c794ff38d5199d9acb2c29, f3f0b273ab49e9d1048ba43d52eb36005274905e, ac11ea05ffadeca978c794ff38d5199d9acb2c29, a1d65f493fdb039d34ef4f65d243a97931763f4b, ddc935727e9a7275813006d9dcaa7fe866610844, a5a7343a835b04812c70699be1b13e54f0e10d48, 73d9eb2783176954f42aa2cbeda8abf1d49ac260, 476a070b0099b95e4c463ee85960c4dcfbd87120, 239f4b1171bcf448cfba345cc90c4b5cd7c21afc, dc67590d14d510b069dee074c55314c56f74bb11, be80b724a636877294b5e5baa501d070941131dd, dccdcc5b4a0da4814f72a020bc4eccb8ea2497d8, 5ac1863be4c6e82666989f4b569928c0805691ff, ec0f8b435dd12c218adffa8892737c7ced4debb8, cb3c5e3455606a045f95f168dae6ed32a387697c, 5b3f93c47a03b628d613a77005e92021cd6cee4b]:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0
+  - @rocket.chat/model-typings@2.0.0
+  </details>
+
+## 2.0.0-rc.5
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.5
+  - @rocket.chat/model-typings@2.0.0-rc.5
+  </details>
+
+## 2.0.0-rc.4
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.4
+  - @rocket.chat/model-typings@2.0.0-rc.4
+  </details>
+
+## 2.0.0-rc.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.3
+  - @rocket.chat/model-typings@2.0.0-rc.3
+  </details>
+
+## 2.0.0-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.2
+  - @rocket.chat/model-typings@2.0.0-rc.2
+  </details>
+
+## 2.0.0-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.1
+  - @rocket.chat/model-typings@2.0.0-rc.1
+  </details>
+
+## 2.0.0-rc.0
+
+### Major Changes
+
+- ([#37672](https://github.com/RocketChat/Rocket.Chat/pull/37672)) Removes deprecated VoIP from Omnichannel
+
+- ([#37672](https://github.com/RocketChat/Rocket.Chat/pull/37672)) Removes Deprecated FreeSwitch integration
+
+### Minor Changes
+
+- ([#37224](https://github.com/RocketChat/Rocket.Chat/pull/37224)) Enhance user's deactivated state handling to correctly distinguish between pending and deactivated users.
+
+- ([#37091](https://github.com/RocketChat/Rocket.Chat/pull/37091)) Adds Attribute Based Access Control (ABAC) for private channels & private teams.
+
+### Patch Changes
+
+- ([#37846](https://github.com/RocketChat/Rocket.Chat/pull/37846)) Fixes /v1/users.logout not marking user sessions as logged out, leaving stale sessions active.
+
+- <details><summary>Updated dependencies [347b8f973440f3e2239f79c00c2d9b430859eef2, b802430fbfdc7fa69a976468dc6dee6f3c4de26f, 872da49986436d2efa65fc42e416b45d706fd59c, ac11ea05ffadeca978c794ff38d5199d9acb2c29, f3f0b273ab49e9d1048ba43d52eb36005274905e, ac11ea05ffadeca978c794ff38d5199d9acb2c29, a1d65f493fdb039d34ef4f65d243a97931763f4b, ddc935727e9a7275813006d9dcaa7fe866610844, a5a7343a835b04812c70699be1b13e54f0e10d48, 73d9eb2783176954f42aa2cbeda8abf1d49ac260, 476a070b0099b95e4c463ee85960c4dcfbd87120, 239f4b1171bcf448cfba345cc90c4b5cd7c21afc, dc67590d14d510b069dee074c55314c56f74bb11, be80b724a636877294b5e5baa501d070941131dd, dccdcc5b4a0da4814f72a020bc4eccb8ea2497d8, 5ac1863be4c6e82666989f4b569928c0805691ff, ec0f8b435dd12c218adffa8892737c7ced4debb8, cb3c5e3455606a045f95f168dae6ed32a387697c, 5b3f93c47a03b628d613a77005e92021cd6cee4b]:</summary>
+
+  - @rocket.chat/rest-typings@8.0.0-rc.0
+  - @rocket.chat/model-typings@2.0.0-rc.0
+  </details>
+
+## 1.8.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.13.2
+  - @rocket.chat/model-typings@1.9.2
+  </details>
+
+## 1.8.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.13.1
+  - @rocket.chat/model-typings@1.9.1
+  </details>
+
+## 1.8.0
+
+### Minor Changes
+
+- ([#37378](https://github.com/RocketChat/Rocket.Chat/pull/37378)) Introduces in-chat messages for when a voice call ends
+
+### Patch Changes
+
+- ([#36835](https://github.com/RocketChat/Rocket.Chat/pull/36835)) Fixes the capture of lead's email or phone number when the visitor didn't have data already
+
+- <details><summary>Updated dependencies [7f1b834a55b1240c226afde77713262da47f45dc, 035e0c7c387d6c99703513c7c00bf37e86538b71]:</summary>
+
+  - @rocket.chat/model-typings@1.9.0
+  - @rocket.chat/rest-typings@7.13.0
+  </details>
+
+## 1.8.0-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.13.0-rc.2
+  - @rocket.chat/model-typings@1.9.0-rc.2
+  </details>
+
+## 1.8.0-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.13.0-rc.1
+  - @rocket.chat/model-typings@1.9.0-rc.1
+  </details>
+
+## 1.8.0-rc.0
+
+### Minor Changes
+
+- ([#37378](https://github.com/RocketChat/Rocket.Chat/pull/37378)) Introduces in-chat messages for when a voice call ends
+
+### Patch Changes
+
+- ([#36835](https://github.com/RocketChat/Rocket.Chat/pull/36835)) Fixes the capture of lead's email or phone number when the visitor didn't have data already
+
+- <details><summary>Updated dependencies [7f1b834a55b1240c226afde77713262da47f45dc, 035e0c7c387d6c99703513c7c00bf37e86538b71]:</summary>
+
+  - @rocket.chat/model-typings@1.9.0-rc.0
+  - @rocket.chat/rest-typings@7.13.0-rc.0
+  </details>
+
+## 1.7.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.2
+  - @rocket.chat/model-typings@1.8.3
+  </details>
+
+## 1.7.2
+
+### Patch Changes
+
+- ([#37436](https://github.com/RocketChat/Rocket.Chat/pull/37436) by [@dionisio-bot](https://github.com/dionisio-bot)) Fixes the capture of lead's email or phone number when the visitor didn't have data already
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.1
+  - @rocket.chat/model-typings@1.8.2
+  </details>
+
+## 1.7.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies [48d1442a07e860fefd6991c97e94d6a9de345afe, 4ab2b7fdb9314538d45abdf4474ea9d2409799be, fd4f9b2523dae23518561cdcfa8d931f87d8964d]:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0
+  - @rocket.chat/model-typings@1.8.1
+  </details>
+
+## 1.7.1-rc.4
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0-rc.4
+  - @rocket.chat/model-typings@1.8.1-rc.4
+  </details>
+
+## 1.7.1-rc.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0-rc.3
+  - @rocket.chat/model-typings@1.8.1-rc.3
+  </details>
+
+## 1.7.1-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0-rc.2
+  - @rocket.chat/model-typings@1.8.1-rc.2
+  </details>
+
+## 1.7.1-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0-rc.1
+  - @rocket.chat/model-typings@1.8.1-rc.1
+  </details>
+
+## 1.7.1-rc.0
+
+### Patch Changes
+
+- <details><summary>Updated dependencies [48d1442a07e860fefd6991c97e94d6a9de345afe, 4ab2b7fdb9314538d45abdf4474ea9d2409799be, fd4f9b2523dae23518561cdcfa8d931f87d8964d]:</summary>
+
+  - @rocket.chat/rest-typings@7.12.0-rc.0
+  - @rocket.chat/model-typings@1.8.1-rc.0
+  </details>
+
+## 1.7.0
+
+### Minor Changes
+
+- ([#36589](https://github.com/RocketChat/Rocket.Chat/pull/36589)) Adds new endpoint to disable Livechat Contacts by its id, with a new permission `delete-livechat-contact`.
+
+### Patch Changes
+
+- ([#36861](https://github.com/RocketChat/Rocket.Chat/pull/36861)) Enable room search by Cyrillic characters in channel names (e.g. "тест").
+
+- <details><summary>Updated dependencies [d76a5578ed0e14fae2a041c0e09d565b28630d76, 8d2ad40c46334aaf35816e52a3b28dc2ac23ce2d, ba793542644d2b725924c4cef253e7d84bc2ff71, 3e177dbd0b65d70bce8587287ba73b30170eb0f7, c5ee569cc3120bb616001fd78687dbf623a6a504, 00611aceec7f158064863f2e829c5a6698687512, c15a47ee1d55118342d0f0ece7af77f6f41132b7, 276c270f34293729182e9ebab61e1ff2c35398fc, 80fbb2eb421253e6066207949eaf2b41871e4428, 90a1759df57814306cbc859409fe041b33db7a39, b74ab6f18ff1343f4835975f663211b005ccc5a1]:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0
+  - @rocket.chat/model-typings@1.8.0
+  </details>
+
+## 1.7.0-rc.7
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.7
+  - @rocket.chat/model-typings@1.8.0-rc.7
+  </details>
+
+## 1.7.0-rc.6
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.6
+  - @rocket.chat/model-typings@1.8.0-rc.6
+  </details>
+
+## 1.7.0-rc.5
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.5
+  - @rocket.chat/model-typings@1.8.0-rc.5
+  </details>
+
+## 1.7.0-rc.4
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.4
+  - @rocket.chat/model-typings@1.8.0-rc.4
+  </details>
+
+## 1.7.0-rc.3
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.3
+  - @rocket.chat/model-typings@1.8.0-rc.3
+  </details>
+
+## 1.7.0-rc.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+- @rocket.chat/rest-typings@7.11.0-rc.2
+- @rocket.chat/model-typings@1.8.0-rc.2
+</details>
+
+## 1.7.0-rc.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.1
+  - @rocket.chat/model-typings@1.8.0-rc.1
+  </details>
+
+## 1.7.0-rc.0
+
+### Minor Changes
+
+- ([#36589](https://github.com/RocketChat/Rocket.Chat/pull/36589)) Adds new endpoint to disable Livechat Contacts by its id, with a new permission `delete-livechat-contact`.
+
+### Patch Changes
+
+- ([#36861](https://github.com/RocketChat/Rocket.Chat/pull/36861)) Enable room search by Cyrillic characters in channel names (e.g. "тест").
+
+- <details><summary>Updated dependencies [d76a5578ed0e14fae2a041c0e09d565b28630d76, 8d2ad40c46334aaf35816e52a3b28dc2ac23ce2d, ba793542644d2b725924c4cef253e7d84bc2ff71, 3e177dbd0b65d70bce8587287ba73b30170eb0f7, c5ee569cc3120bb616001fd78687dbf623a6a504, 00611aceec7f158064863f2e829c5a6698687512, c15a47ee1d55118342d0f0ece7af77f6f41132b7, 276c270f34293729182e9ebab61e1ff2c35398fc, 80fbb2eb421253e6066207949eaf2b41871e4428, 90a1759df57814306cbc859409fe041b33db7a39, b74ab6f18ff1343f4835975f663211b005ccc5a1]:</summary>
+
+  - @rocket.chat/rest-typings@7.11.0-rc.0
+  - @rocket.chat/model-typings@1.8.0-rc.0
+  </details>
+
+## 1.6.2
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+
+  - @rocket.chat/rest-typings@7.10.2
+  - @rocket.chat/model-typings@1.7.2
+  </details>
+
+## 1.6.1
+
+### Patch Changes
+
+- <details><summary>Updated dependencies []:</summary>
+    - @rocket.chat/rest-typings@7.10.1
+    - @rocket.chat/model-typings@1.7.1
+  </details>
+
 ## 1.6.0
 
 ### Minor Changes
@@ -1620,8 +2413,6 @@
 
   - @rocket.chat/model-typings@0.3.9
   </details>
-
-> > > > > > > origin/master
 
 ## 0.0.36
 

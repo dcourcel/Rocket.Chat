@@ -1,7 +1,7 @@
-import type * as http from 'http';
-import type { TransformCallback, TransformOptions } from 'stream';
-import stream from 'stream';
-import zlib from 'zlib';
+import type * as http from 'node:http';
+import type { TransformCallback, TransformOptions } from 'node:stream';
+import stream from 'node:stream';
+import zlib from 'node:zlib';
 
 import type { IUpload } from '@rocket.chat/core-typings';
 import { Logger } from '@rocket.chat/logger';
@@ -28,7 +28,7 @@ class ExtractRange extends stream.Transform {
 		this.bytes_read = 0;
 	}
 
-	_transform(chunk: any, _enc: BufferEncoding, cb: TransformCallback) {
+	override _transform(chunk: any, _enc: BufferEncoding, cb: TransformCallback) {
 		if (this.bytes_read > this.stop) {
 			// done reading
 			this.end();

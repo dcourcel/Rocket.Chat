@@ -1,7 +1,6 @@
-import { Federation, FederationEE, License } from '@rocket.chat/core-services';
 import type { IUser, IUserEmail } from '@rocket.chat/core-typings';
 import { isUserFederated, isDirectMessageRoom } from '@rocket.chat/core-typings';
-import { Rooms, Users, Subscriptions, MatrixBridgedUser } from '@rocket.chat/models';
+import { Rooms, Users, Subscriptions, OAuthAccessTokens, OAuthRefreshTokens, OAuthAuthCodes } from '@rocket.chat/models';
 import { Accounts } from 'meteor/accounts-base';
 import { check } from 'meteor/check';
 import { Meteor } from 'meteor/meteor';
@@ -10,7 +9,7 @@ import { closeOmnichannelConversations } from './closeOmnichannelConversations';
 import { shouldRemoveOrChangeOwner, getSubscribedRoomsForUserWithDetails } from './getRoomsWithSingleOwner';
 import { getUserSingleOwnedRooms } from './getUserSingleOwnedRooms';
 import { relinquishRoomOwnerships } from './relinquishRoomOwnerships';
-import { callbacks } from '../../../../lib/callbacks';
+import { callbacks } from '../../../../server/lib/callbacks';
 import * as Mailer from '../../../mailer/server/api';
 import { settings } from '../../../settings/server';
 import {
@@ -71,22 +70,6 @@ export async function setUserActiveStatus(
 		});
 	}
 
-	if (user.active !== active) {
-		const remoteUser = await MatrixBridgedUser.getExternalUserIdByLocalUserId(userId);
-
-		if (remoteUser) {
-			if (active) {
-				throw new Meteor.Error('error-not-allowed', 'Deactivated federated users can not be re-activated', {
-					method: 'setUserActiveStatus',
-				});
-			}
-
-			const federation = (await License.hasValidLicense()) ? FederationEE : Federation;
-
-			await federation.deactivateRemoteUser(remoteUser);
-		}
-	}
-
 	// Users without username can't do anything, so there is no need to check for owned rooms
 	if (user.username != null && !active) {
 		const userAdmin = await Users.findOneAdmin(userId || '');
@@ -130,7 +113,7 @@ export async function setUserActiveStatus(
 	}
 
 	if (user.username) {
-		const { modifiedCount } = await Subscriptions.setArchivedByUsername(user.username, !active);
+		const { modifiedCount } = await Subscriptions.setArchivedForDMsWithUsername(user.username, !active);
 		if (modifiedCount) {
 			void notifyOnSubscriptionChangedByNameAndRoomType({ t: 'd', name: user.username });
 		}
@@ -138,6 +121,11 @@ export async function setUserActiveStatus(
 
 	if (active === false) {
 		await Users.unsetLoginTokens(userId);
+		await Promise.all([
+			OAuthAccessTokens.deleteByUserId(userId),
+			OAuthRefreshTokens.deleteByUserId(userId),
+			OAuthAuthCodes.deleteByUserId(userId),
+		]);
 		await Rooms.setDmReadOnlyByUserId(userId, undefined, true, false);
 
 		void notifyOnUserChange({ clientAction: 'updated', id: userId, diff: { 'services.resume.loginTokens': [], active } });

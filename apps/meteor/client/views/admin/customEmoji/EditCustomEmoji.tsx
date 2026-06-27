@@ -11,13 +11,12 @@ import {
 	FieldError,
 	IconButton,
 } from '@rocket.chat/fuselage';
-import { GenericModal } from '@rocket.chat/ui-client';
+import { GenericModal, ContextualbarScrollableContent, ContextualbarFooter } from '@rocket.chat/ui-client';
 import { useSetModal, useAbsoluteUrl, useToastMessageDispatch } from '@rocket.chat/ui-contexts';
 import type { ChangeEvent } from 'react';
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ContextualbarScrollableContent, ContextualbarFooter } from '../../../components/Contextualbar';
 import { useEndpointMutation } from '../../../hooks/useEndpointMutation';
 import { useEndpointUploadMutation } from '../../../hooks/useEndpointUploadMutation';
 import { useSingleFileInput } from '../../../hooks/useSingleFileInput';
@@ -172,7 +171,7 @@ const EditCustomEmoji = ({ close, onChange, data, ...props }: EditCustomEmojiPro
 						{newEmojiPreview && (
 							<Box display='flex' flexDirection='row' mbs='none' justifyContent='center'>
 								<Margins inline={4}>
-									<Box is='img' style={{ objectFit: 'contain' }} w='x120' h='x120' src={newEmojiPreview} />
+									<Box is='img' objectFit='contain' w='x120' h='x120' src={newEmojiPreview} />
 								</Margins>
 							</Box>
 						)}

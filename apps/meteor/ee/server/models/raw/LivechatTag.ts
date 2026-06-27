@@ -8,7 +8,7 @@ export class LivechatTagRaw extends BaseRaw<ILivechatTag> implements ILivechatTa
 		super(db, 'livechat_tag');
 	}
 
-	protected modelIndexes(): IndexDescription[] {
+	protected override modelIndexes(): IndexDescription[] {
 		return [
 			{
 				key: {
@@ -29,7 +29,7 @@ export class LivechatTagRaw extends BaseRaw<ILivechatTag> implements ILivechatTa
 		_id: string | undefined,
 		{ name, description }: { name: string; description?: string },
 		departments: string[] = [],
-	): Promise<ILivechatTag> {
+	): Promise<Omit<ILivechatTag, '_updatedAt'>> {
 		const record = {
 			name,
 			description,
@@ -47,7 +47,7 @@ export class LivechatTagRaw extends BaseRaw<ILivechatTag> implements ILivechatTa
 	}
 
 	// REMOVE
-	removeById(_id: string): Promise<DeleteResult> {
+	override removeById(_id: string): Promise<DeleteResult> {
 		const query = { _id };
 
 		return this.deleteOne(query);

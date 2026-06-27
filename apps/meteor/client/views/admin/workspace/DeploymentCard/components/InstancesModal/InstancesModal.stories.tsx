@@ -3,7 +3,6 @@ import type { Meta, StoryFn } from '@storybook/react';
 import InstancesModal from './InstancesModal';
 
 export default {
-	title: 'Admin/Info/InstancesModal',
 	component: InstancesModal,
 	parameters: {
 		layout: 'fullscreen',
@@ -26,7 +25,6 @@ Default.args = {
 				connected: true,
 			},
 			instanceRecord: {
-				_updatedAt: new Date(),
 				_createdAt: new Date(),
 				_id: 'instance-id',
 				name: 'instance-name',

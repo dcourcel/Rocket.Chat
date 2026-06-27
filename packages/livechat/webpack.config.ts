@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
@@ -60,7 +60,7 @@ const config = (_env: any, args: webpack.WebpackOptionsNormalized): webpack.Conf
 				},
 				{
 					test: /\.svg$/,
-					use: [require.resolve('./svg-component-loader'), 'svg-loader', 'image-webpack-loader'],
+					use: [require.resolve('./svg-component-loader'), 'svg-loader'],
 				},
 				{
 					test: /\.s?css$/,

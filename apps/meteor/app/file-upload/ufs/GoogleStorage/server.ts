@@ -3,11 +3,11 @@ import { Storage } from '@google-cloud/storage';
 import type { IUpload } from '@rocket.chat/core-typings';
 import { Random } from '@rocket.chat/random';
 import { check } from 'meteor/check';
-import type { OptionalId } from 'mongodb';
 
 import { SystemLogger } from '../../../../server/lib/logger/system';
 import { UploadFS } from '../../../../server/ufs';
 import type { StoreOptions } from '../../../../server/ufs/ufs-store';
+import { getUrlExpiryTimeSpanWithFallback } from '../../server/lib/urlExpiry';
 
 type GStoreOptions = StoreOptions & {
 	connection: {
@@ -19,16 +19,21 @@ type GStoreOptions = StoreOptions & {
 	};
 	bucket: string;
 	URLExpiryTimeSpan: number;
-	getPath: (file: OptionalId<IUpload>) => string;
+	getPath: (file: Omit<IUpload, '_updatedAt'>) => string;
 };
 
 class GoogleStorageStore extends UploadFS.Store {
-	protected getPath: (file: IUpload) => string;
+	protected getPath: (file: Omit<IUpload, '_updatedAt'>) => string;
 
 	constructor(options: GStoreOptions) {
 		super(options);
 
-		const gcs = new Storage(options.connection);
+		const userAgent = process.env.FILE_STORAGE_CUSTOM_USER_AGENT?.trim();
+
+		const gcs = new Storage({
+			...(userAgent && { userAgent }),
+			...options.connection,
+		});
 		const bucket = gcs.bucket(options.bucket);
 
 		options.getPath =
@@ -51,14 +56,20 @@ class GoogleStorageStore extends UploadFS.Store {
 		};
 
 		this.getRedirectURL = async (file, forceDownload = false) => {
+			const expirySeconds = getUrlExpiryTimeSpanWithFallback(options.URLExpiryTimeSpan);
 			const params: GetSignedUrlConfig = {
 				action: 'read',
 				responseDisposition: forceDownload ? 'attachment' : 'inline',
-				expires: Date.now() + options.URLExpiryTimeSpan * 1000,
+				version: 'v2',
+				expires: Date.now() + expirySeconds * 1000,
 			};
 
 			const res = await bucket.file(this.getPath(file)).getSignedUrl(params);
 			return res[0];
+		};
+
+		this.getUrlExpiryTimeSpan = async () => {
+			return getUrlExpiryTimeSpanWithFallback(options.URLExpiryTimeSpan);
 		};
 
 		/**
@@ -75,7 +86,7 @@ class GoogleStorageStore extends UploadFS.Store {
 			}
 
 			file.GoogleStorage = {
-				path: options.getPath(file),
+				path: options.getPath(file as Omit<IUpload, '_updatedAt'>),
 			};
 
 			file.store = this.options.name; // assign store to file
@@ -98,7 +109,7 @@ class GoogleStorageStore extends UploadFS.Store {
 			try {
 				return bucket.file(this.getPath(file)).delete();
 			} catch (err: any) {
-				SystemLogger.error(err);
+				SystemLogger.error({ err });
 			}
 		};
 

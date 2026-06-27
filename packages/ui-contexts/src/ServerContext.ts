@@ -6,6 +6,7 @@ import type {
 	StreamKeys,
 	StreamNames,
 	StreamerCallbackArgs,
+	StreamerEvents,
 } from '@rocket.chat/ddp-client';
 import type { Method, OperationParams, OperationResult, PathFor, PathPattern, UrlParams } from '@rocket.chat/rest-typings';
 import { createContext } from 'react';
@@ -32,6 +33,7 @@ export type ServerContextValue = {
 		pathPattern: TPathPattern;
 		keys: UrlParams<TPathPattern>;
 		params: OperationParams<TMethod, TPathPattern>;
+		signal?: AbortSignal;
 	}) => Promise<Serialized<OperationResult<TMethod, TPathPattern>>>;
 	uploadToEndpoint: (
 		endpoint: PathFor<'POST'>,
@@ -48,6 +50,10 @@ export type ServerContextValue = {
 			retransmitToSelf?: boolean | undefined;
 		},
 	) => (eventName: K, callback: (...args: StreamerCallbackArgs<N, K>) => void) => () => void;
+	getStreamAll: <N extends StreamNames>(
+		streamName: N,
+	) => (callback: (eventName: string, args: StreamerEvents[N][number]['args']) => void) => () => void;
+	writeStream: <N extends StreamNames, K extends StreamKeys<N>>(streamName: N, eventName: K, ...args: StreamerCallbackArgs<N, K>) => void;
 	disconnect: () => void;
 	reconnect: () => void;
 };
@@ -65,6 +71,10 @@ export const ServerContext = createContext<ServerContextValue>({
 		throw new Error('not implemented');
 	},
 	getStream: () => () => (): void => undefined,
+	getStreamAll: () => () => (): void => undefined,
+	writeStream: () => {
+		throw new Error('not implemented');
+	},
 	disconnect: () => {
 		throw new Error('not implemented');
 	},

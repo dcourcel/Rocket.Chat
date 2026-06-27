@@ -1,6 +1,6 @@
-import { mkdtemp } from 'fs/promises';
-import { tmpdir } from 'os';
-import path, { join } from 'path';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path, { join } from 'node:path';
 
 import type { IExportOperation, IUser } from '@rocket.chat/core-typings';
 import type { ServerMethods } from '@rocket.chat/ddp-client';
@@ -84,6 +84,7 @@ export const requestDataDownload = async ({
 		generatedFile: undefined,
 		fullExport,
 		userData: currentUserData,
+		userNameTable: {},
 	} as unknown as IExportOperation; // @todo yikes!
 
 	const id = await ExportOperations.create(exportOperation);

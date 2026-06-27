@@ -1,4 +1,4 @@
-import type { IUpload } from '@rocket.chat/core-typings';
+import type { EncryptedContent, IUpload } from '@rocket.chat/core-typings';
 import type { IBaseUploadsModel } from '@rocket.chat/model-typings';
 import type {
 	DeleteResult,
@@ -18,7 +18,7 @@ import { BaseRaw } from './BaseRaw';
 type T = IUpload;
 
 export abstract class BaseUploadModelRaw extends BaseRaw<T> implements IBaseUploadsModel<T> {
-	protected modelIndexes(): IndexDescription[] {
+	protected override modelIndexes(): IndexDescription[] {
 		return [
 			{ key: { name: 1 }, sparse: true },
 			{ key: { rid: 1 }, sparse: true },
@@ -92,6 +92,16 @@ export abstract class BaseUploadModelRaw extends BaseRaw<T> implements IBaseUplo
 		return this.updateOne(filter, update);
 	}
 
+	findByIds(_ids: string[], options?: FindOptions<T>): FindCursor<T> {
+		const query = {
+			_id: {
+				$in: _ids,
+			},
+		};
+
+		return this.find(query, options);
+	}
+
 	async findOneByName(name: string, options?: { session?: ClientSession }): Promise<T | null> {
 		return this.findOne<T>({ name }, { session: options?.session });
 	}
@@ -123,5 +133,17 @@ export abstract class BaseUploadModelRaw extends BaseRaw<T> implements IBaseUplo
 
 	async deleteFile(fileId: string, options?: { session?: ClientSession }): Promise<DeleteResult> {
 		return this.deleteOne({ _id: fileId }, { session: options?.session });
+	}
+
+	async findOneByIdAndUserIdAndRoomId(fileId: string, userId: string, rid: string, options?: FindOptions<T>): Promise<T | null> {
+		return this.findOne({ _id: fileId, userId, rid }, options);
+	}
+
+	async updateFileMetadata(
+		fileId: string,
+		userId: string,
+		metadata: { name?: string; description?: string; typeGroup?: string; content?: EncryptedContent },
+	): Promise<UpdateResult | null> {
+		return this.updateOne({ _id: fileId, userId }, { $set: metadata });
 	}
 }

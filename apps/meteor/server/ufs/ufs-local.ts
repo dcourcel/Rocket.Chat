@@ -1,6 +1,6 @@
-import fs from 'fs';
-import { unlink } from 'fs/promises';
-import { isNativeError } from 'util/types';
+import fs from 'node:fs';
+import { unlink } from 'node:fs/promises';
+import { isNativeError } from 'node:util/types';
 
 import type { IUpload } from '@rocket.chat/core-typings';
 import mkdirp from 'mkdirp';
@@ -101,7 +101,7 @@ export class LocalStore extends Store {
 		};
 	}
 
-	async getFilePath(fileId: string, fileParam?: IUpload): Promise<string> {
+	override async getFilePath(fileId: string, fileParam?: IUpload): Promise<string> {
 		const file = fileParam || (await this.getCollection().findOne(fileId, { projection: { extension: 1 } }));
 		return (file && this.getPath(fileId + (file.extension ? `.${file.extension}` : ''))) || '';
 	}

@@ -1,9 +1,11 @@
 import './appcache';
 import './callbacks';
 import { startCronJobs } from './cron';
+import { ensureMessagesTextIndex } from './ensureMessagesTextIndex';
 import './initialData';
 import './serverRunning';
 import './coreApps';
+import { generateFederationKeys } from './generateKeys';
 import './presenceTroubleshoot';
 import '../hooks';
 import '../lib/rooms/roomTypes';
@@ -14,10 +16,12 @@ import { isRunningMs } from '../lib/isRunningMs';
 export const startup = async () => {
 	await performMigrationProcedure();
 
+	await generateFederationKeys();
+
 	setImmediate(() => startCronJobs());
+	setImmediate(() => ensureMessagesTextIndex());
 	// only starts network broker if running in micro services mode
 	if (!isRunningMs()) {
 		require('./localServices');
-		require('./watchDb');
 	}
 };

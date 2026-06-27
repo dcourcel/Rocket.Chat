@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import * as core from '@actions/core';
 import { exec } from '@actions/exec';
@@ -36,12 +36,14 @@ export async function publishRelease({
 
 	const { version: currentVersion } = await readPackageJson(cwd);
 
-	const prerelease = isPreRelease(cwd);
+	const startAsPreRelease = isPreRelease(cwd);
 
-	if (mergeFinal && prerelease) {
+	if (mergeFinal && startAsPreRelease) {
 		// finish release candidate
 		await exec('yarn', ['changeset', 'pre', 'exit']);
 	}
+
+	const prerelease = !mergeFinal && startAsPreRelease;
 
 	const { name: mainPkgName } = await readPackageJson(mainPackagePath);
 

@@ -4,6 +4,7 @@ import type {
 	IOmnichannelGenericRoom,
 	IRoom,
 	IRoomFederated,
+	IRoomNativeFederated,
 	ITeam,
 	IUser,
 	RocketChatRecordDeleted,
@@ -37,7 +38,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		super(db, 'room', trash);
 	}
 
-	modelIndexes(): IndexDescription[] {
+	override modelIndexes(): IndexDescription[] {
 		return [
 			{
 				key: { name: 1 },
@@ -77,10 +78,6 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 				sparse: true,
 			},
 			{
-				key: { createdOTR: 1 },
-				sparse: true,
-			},
-			{
 				key: { encrypted: 1 },
 				sparse: true,
 			}, // used on statistics
@@ -97,6 +94,10 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			},
 			{ key: { t: 1, ts: 1 } },
 			{
+				key: { federated: 1 },
+				sparse: true,
+			},
+			{
 				key: {
 					'usersWaitingForE2EKeys.userId': 1,
 				},
@@ -106,7 +107,33 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 					},
 				},
 			},
+			{
+				key: { 'abacAttributes.key': 1, 'abacAttributes.values': 1 },
+				partialFilterExpression: { abacAttributes: { $exists: true } },
+			},
+			{
+				key: { teamMain: 1 },
+				sparse: true,
+			},
 		];
+	}
+
+	async isAbacAttributeInUse(key: string, values: string[]): Promise<boolean> {
+		if (!values.length) {
+			return false;
+		}
+		const room = await this.findOne(
+			{
+				abacAttributes: {
+					$elemMatch: {
+						key,
+						values: { $in: values },
+					},
+				},
+			},
+			{ projection: { _id: 1 } },
+		);
+		return !!room;
 	}
 
 	findOneByRoomIdAndUserId(rid: IRoom['_id'], uid: IUser['_id'], options: FindOptions<IRoom> = {}): Promise<IRoom | null> {
@@ -123,6 +150,17 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			_id: {
 				$in: roomIds,
 			},
+		};
+
+		return this.find(query, options);
+	}
+
+	findManyArchivedByRoomIds(roomIds: Array<IRoom['_id']>, options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
+		const query: Filter<IRoom> = {
+			_id: {
+				$in: roomIds,
+			},
+			archived: true,
 		};
 
 		return this.find(query, options);
@@ -214,6 +252,26 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.findPaginated(query, options);
 	}
 
+	findPrivateRoomsAndTeamsPaginated(name: NonNullable<IRoom['name']>, options: FindOptions<IRoom> = {}): FindPaginated<FindCursor<IRoom>> {
+		const nameRegex = new RegExp(escapeRegExp(name).trim(), 'i');
+
+		const nameCondition: Filter<IRoom> = {
+			$or: [{ name: nameRegex, federated: { $ne: true } }, { fname: nameRegex }],
+		};
+
+		const query: Filter<IRoom> = {
+			$and: [
+				name ? nameCondition : {},
+				{
+					t: 'p',
+				},
+			],
+			prid: { $exists: false },
+		};
+
+		return this.findPaginated(query, options);
+	}
+
 	findByTeamId(teamId: ITeam['_id'], options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
 		const query: Filter<IRoom> = {
 			teamId,
@@ -267,7 +325,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.find(query, options);
 	}
 
-	findRoomsByNameOrFnameStarting(name: NonNullable<IRoom['name'] | IRoom['fname']>, options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
+	findRoomsByNameOrFnameStarting(name: NonNullable<IRoom['name']>, options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
 		const nameRegex = new RegExp(`^${escapeRegExp(name).trim()}`, 'i');
 
 		const query: Filter<IRoom> = {
@@ -301,7 +359,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			t: {
 				$in: ['c', 'p'],
 			},
-			name: nameRegex,
+			$and: [{ $or: [{ name: nameRegex }, { fname: nameRegex }] }, { federated: { $ne: true } }, { archived: { $ne: true } }],
 			$or: [
 				{
 					teamId: {
@@ -318,7 +376,6 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 				},
 			],
 			prid: { $exists: false },
-			$and: [{ federated: { $ne: true } }, { archived: { $ne: true } }],
 		};
 
 		return this.find(query, options);
@@ -362,11 +419,11 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 	}
 
 	findChannelAndGroupListWithoutTeamsByNameStartingByOwner(
-		name: NonNullable<IRoom['name']>,
+		name: IRoom['name'],
 		groupsToAccept: Array<IRoom['_id']>,
 		options: FindOptions<IRoom> = {},
 	): FindCursor<IRoom> {
-		const nameRegex = new RegExp(`^${escapeRegExp(name).trim()}`, 'i');
+		const nameRegex = name && new RegExp(`^${escapeRegExp(name).trim()}`, 'i');
 
 		const query: Filter<IRoom> = {
 			teamId: {
@@ -378,7 +435,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			_id: {
 				$in: groupsToAccept,
 			},
-			name: nameRegex,
+			...(name && { name: nameRegex }),
 			$and: [{ $or: [{ federated: { $exists: false } }, { federated: false }] }],
 		};
 		return this.find(query, options);
@@ -564,7 +621,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		});
 	}
 
-	findOneByNameOrFname(name: NonNullable<IRoom['name'] | IRoom['fname']>, options: FindOptions<IRoom> = {}): Promise<IRoom | null> {
+	findOneByNameOrFname(name: NonNullable<IRoom['name']>, options: FindOptions<IRoom> = {}): Promise<IRoom | null> {
 		const query = {
 			$or: [
 				{
@@ -588,7 +645,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.findOne(query, options);
 	}
 
-	async findOneByNonValidatedName(name: NonNullable<IRoom['name'] | IRoom['fname']>, options: FindOptions<IRoom> = {}) {
+	async findOneByNonValidatedName(name: NonNullable<IRoom['name']>, options: FindOptions<IRoom> = {}) {
 		const room = await this.findOneByNameOrFname(name, options);
 		if (room) {
 			return room;
@@ -664,8 +721,8 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		);
 	}
 
-	setAsFederated(roomId: IRoom['_id']): Promise<UpdateResult> {
-		return this.updateOne({ _id: roomId }, { $set: { federated: true } });
+	setAsFederated(roomId: IRoom['_id'], { mrid, origin }: { mrid: string; origin: string }): Promise<UpdateResult> {
+		return this.updateOne({ _id: roomId }, { $set: { 'federated': true, 'federation.mrid': mrid, 'federation.origin': origin } });
 	}
 
 	setRoomTypeById(roomId: IRoom['_id'], roomType: IRoom['t']): Promise<UpdateResult> {
@@ -852,7 +909,13 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			uids: { $size: uid.length, $all: uid },
 		};
 
-		return this.findOne<IRoom>(query, options);
+		return this.findOne<IRoom>(query, {
+			...options,
+			sort: {
+				federated: 1,
+				ts: 1,
+			},
+		});
 	}
 
 	findFederatedRooms(options: FindOptions<IRoom> = {}): FindCursor<IRoomFederated> {
@@ -861,6 +924,24 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		};
 
 		return this.find<IRoomFederated>(query, options);
+	}
+
+	findFederatedByIds<T extends Document = IRoomNativeFederated>(ids: Array<IRoom['_id']>, options: FindOptions<T> = {}): FindCursor<T> {
+		const query = {
+			_id: { $in: ids },
+			federated: true,
+		};
+
+		return this.find<T>(query, options);
+	}
+
+	findOneFederatedByMrid(mrid: string, options: FindOptions<IRoomFederated> = {}): Promise<IRoomFederated | null> {
+		const query: Filter<IRoom> = {
+			'federated': true,
+			'federation.mrid': mrid,
+		};
+
+		return this.findOne<IRoomFederated>(query, options);
 	}
 
 	findCountOfRoomsWithActiveCalls(): Promise<number> {
@@ -938,37 +1019,12 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.findOne(query, options);
 	}
 
-	findOneByIdAndType(roomId: IRoom['_id'], type: IRoom['t'], options: FindOptions<IRoom> = {}): Promise<IRoom | null> {
-		return this.findOne({ _id: roomId, t: type }, options);
-	}
-
-	setCallStatus(_id: IRoom['_id'], status: IRoom['callStatus']): Promise<UpdateResult> {
-		const query: Filter<IRoom> = {
-			_id,
-		};
-
-		const update: UpdateFilter<IRoom> = {
-			$set: {
-				callStatus: status,
-			},
-		};
-
-		return this.updateOne(query, update);
-	}
-
-	setCallStatusAndCallStartTime(_id: IRoom['_id'], status: IRoom['callStatus']): Promise<UpdateResult> {
-		const query: Filter<IRoom> = {
-			_id,
-		};
-
-		const update: UpdateFilter<IRoom> = {
-			$set: {
-				callStatus: status,
-				webRtcCallStartTime: new Date(),
-			},
-		};
-
-		return this.updateOne(query, update);
+	findOneByIdAndType<T extends Document = IRoom>(
+		roomId: IRoom['_id'],
+		type: IRoom['t'],
+		options: FindOptions<T> = {} as FindOptions<T>,
+	): Promise<T | null> {
+		return this.findOne<T>({ _id: roomId, t: type }, options);
 	}
 
 	setReactionsInLastMessage(roomId: IRoom['_id'], reactions: IMessage['reactions']): Promise<UpdateResult> {
@@ -1239,6 +1295,25 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.find(query, options);
 	}
 
+	findPrivateRoomsByIdsWithAbacAttributes(ids: Array<IRoom['_id']>, options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
+		const query: Filter<IRoom> = {
+			_id: { $in: ids },
+			t: 'p',
+			abacAttributes: { $exists: true, $ne: [] },
+		};
+
+		return this.find(query, options);
+	}
+
+	findAllPrivateRoomsWithAbacAttributes(options: FindOptions<IRoom> = {}): FindCursor<IRoom> {
+		const query: Filter<IRoom> = {
+			t: 'p',
+			abacAttributes: { $exists: true, $ne: [] },
+		};
+
+		return this.find(query, options);
+	}
+
 	async findBySubscriptionUserId(userId: IUser['_id'], options: FindOptions<IRoom> = {}): Promise<FindCursor<IRoom>> {
 		const data = (await Subscriptions.findByUserId(userId, { projection: { rid: 1 } }).toArray()).map((item) => item.rid);
 
@@ -1494,14 +1569,6 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 			},
 			options,
 		);
-	}
-
-	findByCreatedOTR(): FindCursor<IRoom> {
-		return this.find({ createdOTR: true });
-	}
-
-	countByCreatedOTR(options?: CountDocumentsOptions): Promise<number> {
-		return this.countDocuments({ createdOTR: true }, options);
 	}
 
 	findByUsernamesOrUids(uids: IRoom['u']['_id'][], usernames: IRoom['u']['username'][]): FindCursor<IRoom> {
@@ -1916,6 +1983,64 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		return this.updateOne(query, update);
 	}
 
+	updateAbacConfigurationById(_id: IRoom['_id'], value: boolean): Promise<UpdateResult> {
+		const query: Filter<IRoom> = { _id };
+
+		const update: UpdateFilter<IRoom> = {
+			$set: {
+				abac: value === true,
+			},
+		};
+
+		return this.updateOne(query, update);
+	}
+
+	setAbacAttributesById(_id: IRoom['_id'], attributes: NonNullable<IRoom['abacAttributes']>): Promise<IRoom | null> {
+		return this.findOneAndUpdate({ _id }, { $set: { abacAttributes: attributes } }, { returnDocument: 'after' });
+	}
+
+	unsetAbacAttributesById(_id: IRoom['_id']): Promise<UpdateResult> {
+		return this.updateOne({ _id }, { $unset: { abacAttributes: 1 } });
+	}
+
+	updateSingleAbacAttributeValuesById(_id: IRoom['_id'], key: string, values: string[]): Promise<UpdateResult> {
+		const query: Filter<IRoom> = { _id, 'abacAttributes.key': key };
+
+		const update: UpdateFilter<IRoom> = {
+			$set: {
+				'abacAttributes.$.values': values,
+			},
+		};
+
+		return this.updateOne(query, update);
+	}
+
+	insertAbacAttributeIfNotExistsById(_id: IRoom['_id'], key: string, values: string[]): Promise<IRoom | null> {
+		return this.findOneAndUpdate(
+			{ _id, 'abacAttributes.key': { $ne: key } },
+			{ $push: { abacAttributes: { key, values } } },
+			{ returnDocument: 'after', projection: { abacAttributes: 1 } },
+		) as unknown as Promise<IRoom | null>;
+	}
+
+	updateAbacAttributeValuesArrayFilteredById(_id: IRoom['_id'], key: string, values: string[]): Promise<IRoom | null> {
+		return this.findOneAndUpdate(
+			{ _id },
+			{ $set: { 'abacAttributes.$[attr].values': values } },
+			{ arrayFilters: [{ 'attr.key': key }], returnDocument: 'after' },
+		);
+	}
+
+	removeAbacAttributeByRoomIdAndKey(_id: IRoom['_id'], key: string): Promise<UpdateResult> {
+		const query: Filter<IRoom> = { _id };
+		const update: UpdateFilter<IRoom> = {
+			$pull: {
+				abacAttributes: { key },
+			},
+		};
+		return this.updateOne(query, update);
+	}
+
 	updateGroupDMsRemovingUsernamesByUsername(username: string, userId: string): Promise<Document | UpdateResult> {
 		const query: Filter<IRoom> = {
 			t: 'd',
@@ -1937,7 +2062,7 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		_id: IRoom['_id'],
 		type: IRoom['t'],
 		name: IRoom['name'],
-		extraData?: Record<string, string>,
+		extraData?: Record<string, unknown>,
 	): Promise<IRoom> {
 		const room: IRoom = {
 			_id,
@@ -1972,13 +2097,13 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 	}
 
 	// REMOVE
-	removeById(_id: IRoom['_id']): Promise<DeleteResult> {
+	override removeById(_id: IRoom['_id']): Promise<DeleteResult> {
 		const query: Filter<IRoom> = { _id };
 
 		return this.deleteOne(query);
 	}
 
-	removeByIds(ids: Array<IRoom['_id']>): Promise<DeleteResult> {
+	override removeByIds(ids: Array<IRoom['_id']>): Promise<DeleteResult> {
 		return this.deleteMany({ _id: { $in: ids } });
 	}
 
@@ -1994,18 +2119,6 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 
 	countDiscussions(): Promise<number> {
 		return this.countDocuments({ prid: { $exists: true } });
-	}
-
-	setOTRForDMByRoomID(rid: IRoom['_id']): Promise<UpdateResult> {
-		const query: Filter<IRoom> = { _id: rid, t: 'd' };
-
-		const update: UpdateFilter<IRoom> = {
-			$set: {
-				createdOTR: true,
-			},
-		};
-
-		return this.updateOne(query, update);
 	}
 
 	async getSubscribedRoomIdsWithoutE2EKeys(uid: IUser['_id']): Promise<IRoom['_id'][]> {
@@ -2191,6 +2304,33 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 		]);
 	}
 
+	findAllByTypesAndDiscussionAndTeam(
+		filters: {
+			types?: Array<IRoom['t']>;
+			discussions?: boolean;
+			teams?: boolean;
+		} = {},
+		options: FindOptions<IRoom> = {},
+	): FindCursor<IRoom> {
+		const { types, discussions, teams } = filters;
+
+		const query: Filter<IRoom> = {};
+
+		if (types) {
+			query.t = { $in: types };
+		}
+
+		if (typeof discussions !== 'undefined') {
+			query.prid = { $exists: discussions };
+		}
+
+		if (typeof teams !== 'undefined') {
+			query.teamMain = { $exists: teams };
+		}
+
+		return this.find(query, options);
+	}
+
 	resetRoomKeyAndSetE2EEQueueByRoomId(
 		roomId: string,
 		e2eKeyId: string,
@@ -2209,5 +2349,30 @@ export class RoomsRaw extends BaseRaw<IRoom> implements IRoomsModel {
 
 	async hasCreatedRolePrioritiesForRoom(rid: IRoom['_id'], syncVersion: number) {
 		return this.countDocuments({ _id: rid, rolePrioritiesCreated: syncVersion });
+	}
+
+	async countDistinctFederationRoomsExcluding(_serverNames: string[] = []): Promise<string[]> {
+		// TODO implement
+		return [];
+	}
+
+	countAbacEnabled(): Promise<number> {
+		return this.countDocuments({ abacAttributes: { $exists: true }, archived: { $ne: true } });
+	}
+
+	removeUserReferenceFromDMsById(roomId: string, username: string, userId: string): Promise<UpdateResult> {
+		const query: Filter<IRoom> = {
+			_id: roomId,
+			t: 'd',
+		};
+
+		const update: UpdateFilter<IRoom> = {
+			$pull: {
+				usernames: username,
+				uids: userId,
+			},
+		};
+
+		return this.updateOne(query, update);
 	}
 }

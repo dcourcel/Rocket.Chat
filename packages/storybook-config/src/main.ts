@@ -1,4 +1,4 @@
-import { dirname, join } from 'path';
+import { dirname, join } from 'node:path';
 
 import type { StorybookConfig } from '@storybook/react-webpack5';
 
@@ -13,7 +13,7 @@ const baseConfig = (customConfig?: StorybookConfig): StorybookConfig => {
 			getAbsolutePath('@storybook/addon-a11y'),
 			getAbsolutePath('@storybook/addon-essentials'),
 			getAbsolutePath('storybook-dark-mode'),
-			getAbsolutePath('@storybook/addon-webpack5-compiler-babel'),
+			getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
 			getAbsolutePath('@storybook/addon-styling-webpack'),
 		],
 		framework: {

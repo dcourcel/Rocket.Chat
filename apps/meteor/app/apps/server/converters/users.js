@@ -35,6 +35,7 @@ export class AppUsersConverter {
 			isEnabled: user.active,
 			name: user.name,
 			roles: user.roles,
+			bio: user.bio,
 			status: user.status,
 			statusText: user.statusText,
 			statusConnection,
@@ -44,6 +45,7 @@ export class AppUsersConverter {
 			lastLoginAt: user.lastLogin,
 			appId: user.appId,
 			customFields: user.customFields,
+			sipExtension: user.freeSwitchExtension,
 			settings: {
 				preferences: {
 					...(user?.settings?.preferences?.language && { language: user.settings.preferences.language }),
@@ -65,6 +67,7 @@ export class AppUsersConverter {
 			active: user.isEnabled,
 			name: user.name,
 			roles: user.roles,
+			bio: user.bio,
 			status: user.status,
 			statusConnection: user.statusConnection,
 			utcOffset: user.utfOffset,
@@ -72,6 +75,7 @@ export class AppUsersConverter {
 			_updatedAt: user.updatedAt,
 			lastLogin: user.lastLoginAt,
 			appId: user.appId,
+			freeSwitchExtension: user.sipExtension,
 		});
 	}
 

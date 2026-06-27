@@ -1,6 +1,7 @@
 import type { RoomType, RoomRouteData } from '@rocket.chat/core-typings';
 import { Emitter } from '@rocket.chat/emitter';
 import type {
+	LocationHash,
 	LocationPathname,
 	LocationSearch,
 	RouteName,
@@ -13,6 +14,7 @@ import type {
 
 import { Context, Page } from './page';
 import { appLayout } from '../lib/appLayout';
+import { getRootUrlPathPrefix } from '../lib/meteorRuntimeConfig';
 import { roomCoordinator } from '../lib/rooms/roomCoordinator';
 
 export class Router implements RouterContextValue {
@@ -39,7 +41,7 @@ export class Router implements RouterContextValue {
 
 	private pathDefById = new Map<Route['pathDef'], Route['id']>();
 
-	private readonly basePath = window.__meteor_runtime_config__.ROOT_URL_PATH_PREFIX || '';
+	private readonly basePath = getRootUrlPathPrefix();
 
 	private readonly page = new Page();
 
@@ -222,12 +224,16 @@ export class Router implements RouterContextValue {
 
 	readonly getLocationSearch = () => location.search as LocationSearch;
 
+	readonly getLocationHash = () => location.hash as LocationHash;
+
 	readonly getRouteParameters = () => (this.current?.params ? (Object.fromEntries(this.current.params.entries()) as RouteParameters) : {});
 
 	readonly getSearchParameters = () =>
 		this.current?.queryParams ? (Object.fromEntries(this.current.queryParams.entries()) as SearchParameters) : {};
 
 	readonly getRouteName = () => this.current?.route?.id as RouteName | undefined;
+
+	readonly getPreviousRouteName = () => this.current?.oldRoute?.id as RouteName | undefined;
 
 	private encodeSearchParameters(searchParameters: SearchParameters) {
 		const search = new URLSearchParams();

@@ -1,11 +1,12 @@
-import { AppsEngineUIHost } from '@rocket.chat/apps-engine/client/AppsEngineUIHost';
-import type { IExternalComponentRoomInfo, IExternalComponentUserInfo } from '@rocket.chat/apps-engine/client/definition';
-import { Meteor } from 'meteor/meteor';
+import { AppsEngineUIHost } from '@rocket.chat/apps/dist/client/AppsEngineUIHost';
+import type { IExternalComponentRoomInfo } from '@rocket.chat/apps/dist/client/definition/IExternalComponentRoomInfo';
+import type { IExternalComponentUserInfo } from '@rocket.chat/apps/dist/client/definition/IExternalComponentUserInfo';
 
 import { getUserAvatarURL } from '../../app/utils/client/getUserAvatarURL';
 import { sdk } from '../../app/utils/client/lib/SDKClient';
 import { RoomManager } from '../lib/RoomManager';
 import { baseURI } from '../lib/baseURI';
+import { getUser } from '../lib/user';
 import { Rooms } from '../stores';
 
 // FIXME: replace non-null assertions with proper error handling
@@ -59,7 +60,7 @@ export class RealAppsEngineUIHost extends AppsEngineUIHost {
 	}
 
 	async getClientUserInfo(): Promise<IExternalComponentUserInfo> {
-		const { username, _id } = Meteor.user()!;
+		const { username, _id } = getUser()!;
 
 		return {
 			id: _id,

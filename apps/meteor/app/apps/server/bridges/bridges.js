@@ -1,4 +1,4 @@
-import { AppBridges } from '@rocket.chat/apps-engine/server/bridges';
+import { AppBridges } from '@rocket.chat/apps/dist/server/bridges/AppBridges';
 
 import { AppActivationBridge } from './activation';
 import { AppApisBridge } from './api';
@@ -8,6 +8,7 @@ import { AppContactBridge } from './contact';
 import { AppDetailChangesBridge } from './details';
 import { AppEmailBridge } from './email';
 import { AppEnvironmentalVariableBridge } from './environmental';
+import { AppExperimentalBridge } from './experimental';
 import { AppHttpBridge } from './http';
 import { AppInternalBridge } from './internal';
 import { AppInternalFederationBridge } from './internalFederation';
@@ -59,6 +60,7 @@ export class RealAppBridges extends AppBridges {
 		this._emailBridge = new AppEmailBridge(orch);
 		this._contactBridge = new AppContactBridge(orch);
 		this._outboundMessageBridge = new OutboundCommunicationBridge(orch);
+		this._experimentalBridge = new AppExperimentalBridge(orch);
 	}
 
 	getCommandBridge() {
@@ -167,5 +169,9 @@ export class RealAppBridges extends AppBridges {
 
 	getContactBridge() {
 		return this._contactBridge;
+	}
+
+	getExperimentalBridge() {
+		return this._experimentalBridge;
 	}
 }
